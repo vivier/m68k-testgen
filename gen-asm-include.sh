@@ -1,4 +1,4 @@
-#!/usr/bin/bash
+#!/bin/bash
 
 #############################################################
 # gen-asm-include.sh - opcode test assembly generator fn's

@@ -1,4 +1,4 @@
-#!/usr/bin/bash 
+#!/bin/bash 
 
 echo assembling asmtest.s
 as -g asmtest.s -o asmtest.o
