@@ -1,0 +1,8 @@
+RUNTEST "bfchg" "d0,d1"
+RUNTEST "bfclr" "d0,d1"
+RUNTEST "bfexts" "d0,d1"
+RUNTEST "bfextu" "d0,d1"
+RUNTEST "bfffo" "d0,d1"
+RUNTEST "bfins" "d0,d1"
+RUNTEST "bfset" "d0,d1"
+RUNTEST "bftst" "d0,d1"

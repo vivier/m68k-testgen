@@ -1,0 +1,24 @@
+# UNPK:
+# 
+# instruction format:
+#
+# bits 15-12
+# 1000
+# bits 8-4:
+# 11000
+# 87654
+#
+#(opcode & (32768|16384|8192|4096))==32768  && 
+#(opcode & (256|128|64|32|16))==(256|128)
+#
+#
+#PACK:
+#
+#1000 same
+#10100 8-4 different
+#(opcode & (32768|16384|8192|4096))==32768  && 
+#(opcode & (256|128|64|32|16))==(256|64)
+#
+#right after opcode is what you want to slam
+#
+

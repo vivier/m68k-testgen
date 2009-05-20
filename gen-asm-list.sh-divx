@@ -1,0 +1,2 @@
+RUNTEST "divs" "d0,d1"
+RUNTEST "divu" "d0,d1"

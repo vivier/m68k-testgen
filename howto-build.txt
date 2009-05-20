@@ -1,0 +1,1 @@
+for i in *.c; do gcc -c -I . -I ../hdr -I ../cpu68k/ $i; done
