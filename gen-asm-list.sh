@@ -2,7 +2,7 @@
 # 68040 tests
 
 ###########################
-# modify 68000-tester.c to not support %d2
+# modify m68k-testgen.c to not support %d2
 
 
  mkdir /mnt/next
@@ -29,14 +29,14 @@
  RUNTEST "roxlw" "%d0,%d1"
  RUNTEST "roxlb" "%d0,%d1"
 
-## modify 68000-tester.c to support %d2
+## modify m68k-testgen.c to support %d2
 #
 # RUNTEST "mulul" "%d2,%d0:%d1"
 # RUNTEST "mulsl" "%d2,%d0:%d1"
 # RUNTEST "divul" "%d0,%d2:%d1"
 # RUNTEST "divsl" "%d0,%d2:%d1"
 #
-## modify 68000-tester.c to support writing %d2 over #0
+## modify m68k-testgen.c to support writing %d2 over #0
 #
 # RUNTEST "pack %d0,%d1,#0"
 # RUNTEST "unpk %d0,%d1,#0"
@@ -46,7 +46,7 @@
 ## standard 68000 opcodes.
 ############################
 #
-## modify 68000-tester.c to not support %d2
+## modify m68k-testgen.c to not support %d2
 #
 #  RUNTEST "addl" "%d0,%d1"
 #  RUNTEST "divs" "%d0,%d1"
@@ -93,7 +93,7 @@
 #  RUNTEST "aslw" "%d0,%d1"
 #  RUNTEST "aslb" "%d0,%d1"
 #
-## modify 68000-test.c to only use %d1.
+## modify m68k-testgen.c to only use %d1.
 #
 #RUNTEST "extw" "%d1"
 #RUNTEST "extl" "%d1"

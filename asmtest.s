@@ -45,7 +45,7 @@
 
   ----------------------------------------------------------*/
 
-/* 68000-tester.c:extern uint16  asmtest(uint16 *ccrin, uint32 *reg1, uint32 *reg2, uint32 *reg3, uint16 *ccrout); */
+/* m68k-testgen.c:extern uint16  asmtest(uint16 *ccrin, uint32 *reg1, uint32 *reg2, uint32 *reg3, uint16 *ccrout); */
 
 
 .text

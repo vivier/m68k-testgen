@@ -12,13 +12,13 @@ RUNTEST()
    WRITE $1 $2
    FINISH
 
-   if ! make mc68000-tester
+   if ! make m68k-testgen
    then
       exit 1;
    fi
    
    echo Running $1 $2 test...
-   ./mc68000-tester
+   ./m68k-testgen
    echo done $1 $2 test.
    echo 
 }

@@ -1,4 +1,4 @@
-mc68000-tester
+m68k-testgen
 opcodes-asm.s
 opcodes.c
 opcodes.h
