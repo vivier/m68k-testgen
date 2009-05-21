@@ -3,3 +3,4 @@ opcodes-asm.s
 opcodes.c
 opcodes.h
 *.o
+*.swp
