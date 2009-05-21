@@ -55,60 +55,7 @@ extern uint16 *test_opcodes[NUMOPCODES];
 extern char   *text_opcodes[NUMOPCODES];
 extern int    pcount_opcodes[NUMOPCODES];
 
-uint16 myopcode; 
-unsigned int gen_quit = 0;
-unsigned int gen_debugmode = 1;
-
-void initialize_all_subsystems(void);
-
 uint8 opcode_to_test[4096];             // execution space for generator.
-
-//for RC parsing
-char *rstrip(char *s)
-{
-	char space=' ';
-	int32 i;
-	i=strlen(s)-1;
-	if (i<=0) return s;
-	while (s[i]<=space && i>0) {s[i]=0; i--;}
-	return s;
-}
-
-/* strip white space at the left (start) of a string.
-   First we check that there is some, if there isn't,
-   we bail out fast, if there is, we start copying the
-   string over itself. For safety, we also check the
-   size of the string so we prevent buffer overflows,
-   incase we accidentally don't have a string terminator. */
-
-// for RC parsing
-char *lstrip(char *s, size_t n)
-{
-	char space=' ';
-	uint32 i=0, j=0;
-
-	if (*s>space) return s; // nothing to do, no ws leftmost
-
-	while (s[i]<=space && i<n) i++; // find first nonspace.
-	while (s[i] && i<n)	s[j++]=s[i++]; // move the string over
-
-	s[j++]=0; // make sure that we terminate string properly.
-	return s;
-}
-
-// for RC parsing
-int isalphanumeric(char *s)
-{
-	while (*s)
-	{ if (isalnum((int)(*s))) s++; else return 0; }
-	return 1;
-}
-
-// for RC parsing
-char *stringtoupper(char *s)
-{
-	while ( (*s=toupper(*s)) ) s++; return s;
-}
 
 void banner(void)
 {
@@ -210,7 +157,6 @@ int create_asm_fn(uint8 *newopcode,size_t size, uint32 orgd2, int packflag)
 }
 
 void run_opcodes();
-
 
 int main(int argc, char *argv[])
 {
