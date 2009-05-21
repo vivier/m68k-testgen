@@ -26,6 +26,7 @@
 #include <setjmp.h>
 
 #include <signal.h>
+#include <getopt.h>
 
 typedef unsigned char  uint8;
 typedef unsigned short uint16;
@@ -55,9 +56,9 @@ extern uint16 *test_opcodes[NUMOPCODES];
 extern char   *text_opcodes[NUMOPCODES];
 extern int    pcount_opcodes[NUMOPCODES];
 
-uint8 opcode_to_test[4096];             // execution space for generator.
+static uint8 opcode_to_test[4096];             // execution space for generator.
 
-void banner(void)
+static void banner(void)
 {
 
  //         .........1.........2.........3.........4.........5.........6.........7
@@ -72,7 +73,7 @@ void banner(void)
     printf("  -------------------------------------------------------------------  \n");
 }
 
-char *getccr(uint16 ccr)
+static char *getccr(uint16 ccr)
 {
  static char text[6];
 
@@ -101,7 +102,7 @@ uint16 (*exec68k_opcode)(uint16 *ccrin, uint32 *reg1, uint32 *reg2, uint32 *reg3
 
 uint32 *fnstart, codesize, nopoffset, nopsize;
 
-int create_asm_fn(uint8 *newopcode,size_t size, uint32 orgd2, int packflag)
+static int create_asm_fn(uint8 *newopcode,size_t size, uint32 orgd2, int packflag)
 {
     uint32 i;
     uint8 *memory,*fnmem;
@@ -115,30 +116,11 @@ int create_asm_fn(uint8 *newopcode,size_t size, uint32 orgd2, int packflag)
     // copy the function to the allocated memory + some padding.
     // (should change these to do long/read+writes, but it doesn't much matter.)
 
-
     memcpy(memory,fnstart,codesize+16); 
     //for (fnmem=(char *)fnstart, i=0; i<codesize+16; i++) memory[i]=fnmem[i];
 
     // now overwrite the NOP's with the actual opcode we want to test.
     if (size) for (i=0; i<size; i++)  memory[i+nopoffset]=newopcode[i];
-
-
-
-    if (size) 
-       {
-        FILE *assembly=fopen("/mnt/next/opcode-bytes.txt","a");
-        fprintf(assembly,"   opcode binary: ");
-
-          for (i=0; i<size; i++)  
-              { 
-               fprintf(assembly,"%02x",newopcode[i]); if (i &1) fprintf(assembly," ");
-              }
-          fprintf(assembly,"\n");
-          fflush(assembly);
-          fclose(assembly);
-       }
-
-
 
     if (packflag) {memory[nopoffset+2]= (orgd2>>8) & 0xff; memory[nopoffset+3]=(orgd2   ) & 0xff;}
 
@@ -156,29 +138,7 @@ int create_asm_fn(uint8 *newopcode,size_t size, uint32 orgd2, int packflag)
     return 0;
 }
 
-void run_opcodes();
-
-int main(int argc, char *argv[])
-{
-
-
- banner();
-
- /* Set the stage */
- 
- exec68k_opcode=NULL;                    // make sure we don't free illegally.
-                                         // get fn start, codesize, nopoffset, nopsizes
- fnstart  = getfnptr();  
- codesize = getfnsize();
- nopoffset= getopcodeoffset();
- nopsize  = getopcodesize();
- init_opcodes();
-
- run_opcodes(); 
-}
-
-
-void run_opcodes()
+static void run_opcodes(const char *directory)
 {
  FILE *fd=NULL;
  int status;
@@ -237,8 +197,8 @@ void run_opcodes()
 
   if (fd!=NULL) pclose(fd);
 
-  sprintf(pipecmd,GZIP" -1 >/mnt/next/m68040-opcode-%s.d2=%08x.bin.gz",text_opcodes[i],orgd2);
-  // sprintf(pipecmd,GZIP" -1 >/mnt/next/m68040-opcode-%s.bin.gz",text_opcodes[i]); //no-d2
+  sprintf(pipecmd,GZIP" -1 > %s/m68040-opcode-%s.d2=%08x.bin.gz", directory, text_opcodes[i],orgd2);
+  // sprintf(pipecmd,GZIP" -1 > %s/m68040-opcode-%s.bin.gz", directory, text_opcodes[i]); //no-d2
   fprintf(stderr,"\nOpening pipe to %s\n\n",pipecmd);
   fd=popen(pipecmd,"w");
   if (!fd) {perror("Could not open gzip pipe."); exit(1);}
@@ -260,13 +220,6 @@ void run_opcodes()
        text_opcodes[i][3]=='k'    )  )    packflag=1;
 
   fprintf(stderr,"Creating ASM function %s (%d) bytes in length\n",text_opcodes[i],j); fflush(stderr);
-
-  {
-  FILE *assembly=fopen("/mnt/next/opcode-bytes.txt","a");
-  fprintf(assembly,"Testing %s :",text_opcodes[i]); fflush(assembly);
-  fprintf(stderr,"Testing %s :",text_opcodes[i]); fflush(stderr);
-  fclose(assembly);
-  }
 
   status=create_asm_fn(opcode_to_test,j,orgd2,packflag);
   if (status) {printf("Couldn't create asm function because:%d\n",status); exit(1);}
@@ -344,7 +297,62 @@ void run_opcodes()
  fprintf(stderr,"                                                                \n\n"); 
  // add a newline to linefeed since update display above doesn't.
  return;
+}
 
+static void Usage(int argc, char **argv)
+{
+	fprintf(stderr, "Usage: %s [-d|--directory <directory>]\n", argv[0]);
+}
 
+int main(int argc, char **argv)
+{
+	int option_index = 0;
+	char *directory = ".";
+	static struct option long_options[] = {
+		{ "directory", 1, NULL, 'd' },
+		{ "help", 0, NULL, 'h' },
+		{0, 0, 0, 0}
+	};
+	int c;
 
+	while (1) {
+		c = getopt_long(argc, argv, "hd:", long_options, &option_index);
+        	if (c == -1)
+			break;
+
+		switch(c) {
+		case 'd':
+			directory = optarg;
+			break;
+		case 'h':
+		case '?':
+			Usage(argc, argv);
+			exit(1);
+		default:
+			fprintf(stderr, "Error: unknown parameter %s\n", optarg);
+			break;
+		}
+	}
+	if (argc != optind) {
+		fprintf(stderr, "Invalid number of argument\n");
+		Usage(argc, argv);
+		exit(1);
+	}
+
+	banner();
+	
+	/* Set the stage */
+	 
+	exec68k_opcode=NULL;                    // make sure we don't free illegally.
+
+	// get fn start, codesize, nopoffset, nopsizes
+
+	fnstart  = getfnptr();  
+	codesize = getfnsize();
+	nopoffset= getopcodeoffset();
+	nopsize  = getopcodesize();
+
+	init_opcodes();
+
+	run_opcodes(directory); 
 }

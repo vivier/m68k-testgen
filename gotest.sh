@@ -18,7 +18,7 @@ RUNTEST()
    fi
    
    echo Running $1 $2 test...
-   ./m68k-testgen
+   ./m68k-testgen --directory=/mnt/next
    echo done $1 $2 test.
    echo 
 }
