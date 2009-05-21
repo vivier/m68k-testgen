@@ -11,16 +11,12 @@
 *                                                                                      *
 \**************************************************************************************/
 
-
+#define GZIP "/bin/gzip"
 
 // behavior of test results.
 // #define SKIP_CCR_TESTS 1
 // #define SKIP_PASSED_TESTS 1
 // #define LIMIT_FAILURES 1
-
-
-
-#define IN_LISAEM_C 1
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -31,43 +27,27 @@
 
 #include <signal.h>
 
-#include <generator.h>
-#include <cpu68k.h>
-#include <mem68k.h>
-
-#define UHAVELISAEMTYPESH
-
-// #include <vars.h> already got it from cpu68k.h
-
-#include <registers.h>
-#include <reg68k.h>
-#include "../cpu68k/def68k-proto.h"
+typedef unsigned char  uint8;
+typedef unsigned short uint16;
+typedef unsigned int   uint32;
 
 
-//typedef unsigned char  uint8;
-//typedef unsigned short uint16;
-//typedef unsigned int   uint32;
+typedef signed char  sint8;
+typedef signed short sint16;
+typedef signed int   sint32;
 
 
-//typedef signed char  sint8;
-//typedef signed short sint16;
-//typedef signed int   sint32;
-
-
-//typedef signed char  int8;
-//typedef signed short int16;
-//typedef signed int   int32;
+typedef signed char  int8;
+typedef signed short int16;
+typedef signed int   int32;
 
 #include "patterns.h"
-
 
 #define X_FLAG 16
 #define N_FLAG  8
 #define Z_FLAG  4
 #define V_FLAG  2
 #define C_FLAG  1
-
-
 
 #include "opcodes.h"
 
@@ -81,33 +61,7 @@ unsigned int gen_debugmode = 1;
 
 void initialize_all_subsystems(void);
 
-void my_cpu68k_ipc(uint32 addr68k, uint8 *opcodebuffer, t_iib * iib, t_ipc * ipc);
 uint8 opcode_to_test[4096];             // execution space for generator.
-
-/* Strip white space at the end of a string.  No need to size
-   check the string since strlen will return its length. */
-
-
-// bullshit fn's to satisfy compilation - not needed here, but needed by supporting fn's.
-void mmuflush(void) {return;}
-void dump_scc(void) {return;}
-char *printslr(char *x, long size, uint16 slr) {return NULL;}
-char *mspace(lisa_mem_t fn) {return NULL;}
-void checkcontext(uint8 c, char *text) {;}
-lisa_mem_t rmmuslr2fn(uint16 slr, uint32 a9) {return 0;}
-void get_slr_page_range(int cx,int seg, int16 *pagestart, int16 *pageend, lisa_mem_t *rfn, lisa_mem_t *wfn)
-{;}
-
-// memory debug functions - not needed here.
-void  *dmem68k_memptr(    char *file, char *function, int line,uint32 a) {return NULL;}
-uint8  dmem68k_fetch_byte(char *file, char *function, int line,uint32 a ) {return 0;}
-uint16 dmem68k_fetch_word(char *file, char *function, int line,uint32 a ) {return 0;}
-uint32 dmem68k_fetch_long(char *file, char *function, int line,uint32 a ) {return 0;}
-void   dmem68k_store_byte(char *file, char *function, int line,uint32 a, uint8  d) {;}
-void   dmem68k_store_word(char *file, char *function, int line,uint32 a, uint16 d) {;}
-void   dmem68k_store_long(char *file, char *function, int line,uint32 a, uint32 d) {;}
-
-
 
 //for RC parsing
 char *rstrip(char *s)
@@ -156,12 +110,6 @@ char *stringtoupper(char *s)
 	while ( (*s=toupper(*s)) ) s++; return s;
 }
 
-
-
-
-
-
-
 void banner(void)
 {
 
@@ -176,93 +124,6 @@ void banner(void)
     printf("  Released  under  the terms of  the  GNU Public License  Version 2.0  \n");
     printf("  -------------------------------------------------------------------  \n");
 }
-
-
-// stolen from generator
-RETSIGTYPE gen_sighandler(int signum)
-{
-	signal(signum, gen_sighandler); // reinstate signal handler to prevent race condition.
-
-    dumpram();
-
-    if (gen_debugmode) {
-		if (signum == SIGINT) {
-			if (gen_quit)
-			{
-				ui_log_critical(("Bye!"));
-				//uninit_gui();
-			}
-			else
-            {
-				ui_log_request("Ping - current PC = 0x%X",regs.pc);
-			}
-			exit(1);
-		}
-	}
-	else
-	{
-		//uninit_gui();
-		exit(0);
-	}
-
-}
-
-
-// stolen from reg68k.c of course. :)
-void      execgen_opcode(uint16 *ccrin, uint32 *reg1, uint32 *reg2, uint32 *reg3, uint16 *ccrout)
-//void execgen_opcode(uint16 *ccrin, uint32 *reg1, uint32 *reg2, uint16 *ccrout)
-{
-        //uint16 myopcode; 
-        static t_ipc ipc;
-        static t_iib *piib;
-        jmp_buf jb;
-
-          if (!setjmp(jb)) 
-        {
-                // setup generator registers for testing 
-                abort_opcode=0;
-                regs.regs[0]=*reg1; 
-                regs.regs[1]=*reg2;
-                regs.regs[1]=*reg3;
-                regs.pc=1024;
-                regs.sr.sr_int=(*ccrin & 0x00ff);
-
-
-     //          printf("Pointers: ipc:%p  %p reg1, %p reg2, %p reg68k_regs:: %p %p\n",&ipc,reg1,reg2,reg68k_regs, &regs.regs[0],&regs.regs[1]);
-
-                /* move PC and register block into global processor register variables */
-		reg68k_regs = regs.regs;
-                reg68k_pc =   regs.pc;
-                reg68k_sr =   regs.sr;
-               
-                myopcode=((opcode_to_test[0]<<8)|opcode_to_test[1]); 
-
-                if (!(piib = cpu68k_iibtable[myopcode]))
-                    DEBUG_LOG(0,"Invalid instruction @ %08X\n", reg68k_pc); // RA
-
-                my_cpu68k_ipc(reg68k_pc, opcode_to_test, piib, &ipc);
-
-
-		//fprintf(stderr,"in d0,d1: :%08x,%08x\n",reg68k_regs[0],reg68k_regs[1]);
-
-                cpu68k_functable[myopcode*2 + 1] (&ipc);
-		//fprintf(stderr,"%04x d0,d1: :%08x,%08x  ,  %08x,%08x            \n",myopcode,regs.regs[0],regs.regs[1],reg68k_regs[0],reg68k_regs[1]);
-
-                // get return values;
-                regs.pc = reg68k_pc;
-                regs.sr = reg68k_sr;
-                *ccrout = reg68k_sr.sr_int;
-                *reg1=reg68k_regs[0]; 
-                *reg2=reg68k_regs[1]; 
-//		fprintf(stderr,"out %04x d0,d1: :%08x,%08x  ,  %08x,%08x            \n",myopcode,*reg1,*reg2,reg68k_regs[0],reg68k_regs[1]);
-
-                  longjmp(jb, 1);
-        }
-}
-
-
-
-
 
 char *getccr(uint16 ccr)
 {
@@ -279,22 +140,17 @@ char *getccr(uint16 ccr)
  return text;
 }
 
-
-
 // our assembly functions
-extern uint32 *getfnptr(void);
+
+extern uint32 getfnptr(void);
 extern uint32 getfnsize(void);
 extern uint32 getopcodeoffset(void);
 extern uint32 getopcodesize(void);
 extern void init_opcodes(void);
 
-
 extern uint16  asmtest(uint16 *ccrin, uint32 *reg1, uint32 *reg2, uint32 *reg3, uint16 *ccrout);
 
-// our allocated function to the copy of asmtest.
 uint16 (*exec68k_opcode)(uint16 *ccrin, uint32 *reg1, uint32 *reg2, uint32 *reg3, uint16 *ccrout);
-void      execgen_opcode(uint16 *ccrin, uint32 *reg1, uint32 *reg2, uint32 *reg3, uint16 *ccrout);
-
 
 uint32 *fnstart, codesize, nopoffset, nopsize;
 
@@ -302,7 +158,6 @@ int create_asm_fn(uint8 *newopcode,size_t size, uint32 orgd2, int packflag)
 {
     uint32 i;
     uint8 *memory,*fnmem;
-
 
     if (size>nopsize) return 1;
 
@@ -349,41 +204,10 @@ int create_asm_fn(uint8 *newopcode,size_t size, uint32 orgd2, int packflag)
     // memory leak to prevent over malloc/free'd.
 
     if (exec68k_opcode!=NULL) free(exec68k_opcode);
-    (void *)exec68k_opcode=(void *)memory;        
+    exec68k_opcode=(void *)memory;        
 
     return 0;
 }
-
-// get rid of the real one that will be used by the emulator.
-#undef RAM_MMU_TRANS
-
-// New one - faking start PC to 1024 to avoid low ram vectors.
-#define RAM_MMU_TRANS(x) (&opcode_to_test[(x-1024)])
-
-
-uint8  lisa_rb_ram(uint32 addr)
-{
-    return (*(uint8 *)(RAM_MMU_TRANS(addr)));
-}
-
-uint16 lisa_rw_ram(uint32 addr)
-{
-   return LOCENDIAN16(*(uint16 *)(RAM_MMU_TRANS(addr)));
-}
-
-uint32 lisa_rl_ram(uint32 addr)
-{
-
-#ifdef ALIGNLONGS
-   {uint32 addr2=addr+2; // this is here to prevent warning about needing parens around & when +/- used from gcc
-    return (LOCENDIAN16(*(uint16 *)(RAM_MMU_TRANS(addr  )) << 16) |
-            LOCENDIAN16(*(uint16 *)(RAM_MMU_TRANS(addr2))));
-   }
-#else
-   return  LOCENDIAN32(*(uint32 *)(RAM_MMU_TRANS(addr  )));
-#endif
-}
-
 
 void run_opcodes();
 
@@ -402,10 +226,6 @@ int main(int argc, char *argv[])
  codesize = getfnsize();
  nopoffset= getopcodeoffset();
  nopsize  = getopcodesize();
-
- cpu68k_init();				 // initialize generator core.
- //init_ipct_allocator();
- cpu68k_reset();
  init_opcodes();
 
  run_opcodes(); 
@@ -431,7 +251,7 @@ void run_opcodes()
  int i,j,k0,k1,k2,failed=0,skippy=0,skippy2=0;
  char c;
  char pipecmd[1024];
- uint32 long testsdone=0;
+ uint32 testsdone=0;
 
 typedef struct binary_output
 {
@@ -545,8 +365,8 @@ bin_output_t output;
 
   if (fd!=NULL) pclose(fd);
 
-  sprintf(pipecmd,"/usr/bin/gzip -1 >/mnt/next/m68040-opcode-%s.d2=%08x.bin.gz",text_opcodes[i],orgd2);
-  // sprintf(pipecmd,"/usr/bin/gzip -1 >/mnt/next/m68040-opcode-%s.bin.gz",text_opcodes[i]); //no-d2
+  sprintf(pipecmd,GZIP" -1 >/mnt/next/m68040-opcode-%s.d2=%08x.bin.gz",text_opcodes[i],orgd2);
+  // sprintf(pipecmd,GZIP" -1 >/mnt/next/m68040-opcode-%s.bin.gz",text_opcodes[i]); //no-d2
   fprintf(stderr,"\nOpening pipe to %s\n\n",pipecmd);
   fd=popen(pipecmd,"w");
   if (!fd) {perror("Could not open gzip pipe."); exit(1);}
@@ -647,212 +467,4 @@ bin_output_t output;
 
 
 
-}
-
-
-
-void my_cpu68k_ipc(uint32 addr68k, uint8 *opcodebuffer, t_iib * iib, t_ipc * ipc)
-{
-    t_type type;
-    uint8  *addr;
-    uint32 *p, a9,adr;
-
-    
-    addr=opcodebuffer;
-    addr68k &= 0x00ffffff;
-
-    if ( !ipc)
-    {
-      fprintf(stderr,"I was passed a NULL ipc.\nLet the bodies hit the floor... 1, Nothin' wrong with me. 2, Nothing wrong with me, 3. Nothing wrong with me. 4. Nothing wrong with me."); exit(123);
-    }
-
-    if ( !iib)
-    {
-      fprintf(stderr,"I was passed a NULL iib.\nLet the bodies hit the floor... 1, Nothin' wrong with me. 2, Nothing wrong with me, 3. Nothing wrong with me. 4. Nothing wrong with me."); exit(123);
-    }
-
-  ipc->opcode = (opcodebuffer[0]<<8)|(opcodebuffer[1]);
-  ipc->wordlen = 1;
-  if (!iib) {
-    /* illegal instruction, no further details (wordlen must be set to 1) */
-    return;
-  }
-
-  ipc->used = iib->flags.used;
-  ipc->set = iib->flags.set;
-
-
-  if ((iib->mnemonic == i_Bcc) || (iib->mnemonic == i_BSR)) {
-    /* special case - we can calculate the offset now */
-    /* low 8 bits of current instruction are addr+1 */
-    //ipc->src = (sint32)(*(sint8 *)(addr + 1));
-    ipc->src = (sint32)((sint8)(lisa_rb_ram(addr68k+1)));
-    DEBUG_LOG(205,"i_Bcc @ %08x target:%08x opcode:%04x",addr68k,ipc->src,ipc->opcode);
-
-    if (ipc->src == 0) {
-      ipc->src = (sint32)(sint16)(lisa_rw_ram(addr68k + 2));
-      DEBUG_LOG(205,"i_Bcc2 @ %08x target:%08x opcode:%04x",addr68k,ipc->src,ipc->opcode);
-      ipc->wordlen++;
-    }
-
-    ipc->src += addr68k + 2;    /* add PC of next instruction */
-    DEBUG_LOG(205,"i_Bcc2 @ %08x target:%08x opcode:%04x",addr68k,ipc->src,ipc->opcode);
-    return;
-  }
-  if (iib->mnemonic == i_DBcc || iib->mnemonic == i_DBRA) {
-    /* special case - we can calculate the offset now */
-
-    ipc->src = (sint32)(sint16)lisa_rw_ram(addr68k + 2);
-    ipc->src += addr68k + 2;    /* add PC of next instruction */
-    DEBUG_LOG(205,"i_DBcc/DBRA @ %08x target:%08x opcode:%04x",addr68k,ipc->src,ipc->opcode);
-    ipc->wordlen++;
-    return;
-  }
-
-  addr += 2;
-  addr68k += 2;
-
-  //check_iib();
-
-  for (type = 0; type < 2; type++) {
-    if (type == tp_src)
-      p = &(ipc->src);
-    else
-      p = &(ipc->dst);
-
-    switch (type == tp_src ? iib->stype : iib->dtype) {
-    case dt_Adis:
-
-      *p = (sint32)(sint16)(lisa_rw_ram(addr68k));
-
-      ipc->wordlen++;
-      DEBUG_LOG(205,"dt_Adis @ %08x target:%08x opcode:%04x",addr68k,*p,ipc->opcode);
-      addr += 2;
-      addr68k += 2;
-      break;
-    case dt_Aidx:
-      *p = (sint32)(sint8)lisa_rb_ram(addr68k+1);
-      *p = (*p & 0xFFFFFF) | (lisa_rb_ram(addr68k) << 24);
-      DEBUG_LOG(205,"dt_Adix @ %08x target:%08x opcode:%04x",addr68k,*p,ipc->opcode);
-      ipc->wordlen++;
-      addr += 2;
-      addr68k += 2;
-      break;
-    case dt_AbsW:
-      *p = (sint32)(sint16)lisa_rw_ram(addr68k);
-
-
-
-      ipc->wordlen++;
-      DEBUG_LOG(205,"dt_AbsW @ %08x target:%08x opcode:%04x",addr68k,*p,ipc->opcode);
-      addr += 2;
-      addr68k += 2;
-      break;
-    case dt_AbsL:
-      //*p = (uint32)((LOCENDIAN16(*(uint16 *)addr) << 16) +
-      //              LOCENDIAN16(*(uint16 *)(addr + 2)));
-      *p=lisa_rl_ram(addr68k);
-      DEBUG_LOG(205,"dt_AbsL @ %08x target:%08x opcode:%04x",addr68k,*p,ipc->opcode);
-      ipc->wordlen += 2;
-      addr += 4;
-      addr68k += 4;
-      break;
-    case dt_Pdis:
-      *p = (sint32)(sint16)lisa_rw_ram(addr68k);
-      *p += addr68k;            /* add PC of extension word (this word) */
-      DEBUG_LOG(205,"dt_Pdis @ %08x target:%08x opcode:%04x",addr68k,*p,ipc->opcode);
-      ipc->wordlen++;
-      addr += 2;
-      addr68k += 2;
-      break;
-    case dt_Pidx:
-
-      *p = ((sint32)(sint8)(lisa_rb_ram(addr68k+1))  + addr68k);
-      *p = (*p & 0x00FFFFFF) | (lisa_rb_ram(addr68k)) << 24;  // <<--- is this correct???
-
-
-
-      DEBUG_LOG(205,"dt_Pidx @ %08x target:%08x opcode:%04x",addr68k,*p,ipc->opcode);
-      ipc->wordlen++;
-      addr += 2;
-      addr68k += 2;
-      break;
-    case dt_ImmB:
-      /* low 8 bits of next 16 bit word is addr+1 */
-      *p = (uint32)lisa_rb_ram(addr68k + 1);
-
-      DEBUG_LOG(205,"dt_ImmB @ %08x target:%08x opcode:%04x",addr68k,*p,ipc->opcode);
-      ipc->wordlen++;
-      addr += 2;
-      addr68k += 2;
-      break;
-    case dt_ImmW:
-      *p = (uint32)lisa_rw_ram(addr68k);
-      DEBUG_LOG(205,"dt_ImmW @ %08x target:%08x opcode:%04x",addr68k,*p,ipc->opcode);
-      ipc->wordlen++;
-      addr += 2;
-      addr68k += 2;
-      break;
-    case dt_ImmL:
-      *p = (uint32)lisa_rl_ram(addr68k); // ((LOCENDIAN16(*(uint16 *)addr) << 16) +  LOCENDIAN16(*(uint16 *)(addr + 2)));
-
-
-      DEBUG_LOG(205,"dt_ImmL @ %08x target:%08x opcode:%04x",addr68k,*p,ipc->opcode);
-      ipc->wordlen += 2;
-      addr += 4;
-      addr68k += 4;
-      break;
-    case dt_Imm3:
-      if (type == tp_src)
-         {
-             *p = (ipc->opcode >> iib->sbitpos) & 7;
-             DEBUG_LOG(205,"dt_Imm3 src @ %08x target:%08x opcode:%04x",addr68k,*p,ipc->opcode);
-         }
-      else
-         {
-             *p = (ipc->opcode >> iib->dbitpos) & 7;
-             DEBUG_LOG(205,"dt_Imm3 dst @ %08x target:%08x opcode:%04x",addr68k,*p,ipc->opcode);
-         }
-      break;
-    case dt_Imm4:
-      if (type == tp_src)
-         {
-            *p = (ipc->opcode >> iib->sbitpos) & 15;
-            DEBUG_LOG(205,"dt_Imm4 src @ %08x target:%08x opcode:%04x",addr68k,*p,ipc->opcode);
-         }
-      else
-        {
-            *p = (ipc->opcode >> iib->dbitpos) & 15;
-            DEBUG_LOG(205,"dt_Imm4 dst @ %08x target:%08x opcode:%04x",addr68k,*p,ipc->opcode);
-        }
-      break;
-    case dt_Imm8:
-      if (type == tp_src)
-        {
-            *p = (ipc->opcode >> iib->sbitpos) & 255;
-            DEBUG_LOG(205,"dt_Imm8 src @ %08x target:%08x opcode:%04x",addr68k,*p,ipc->opcode);
-        }
-      else
-        {
-            *p = (ipc->opcode >> iib->dbitpos) & 255;
-            DEBUG_LOG(205,"dt_Imm8 dst @ %08x target:%08x opcode:%04x",addr68k,*p,ipc->opcode);
-        }
-      break;
-    case dt_Imm8s:
-      if (type == tp_src)
-        {
-            *p = (sint32)(sint8)((ipc->opcode >> iib->sbitpos) & 255);
-            DEBUG_LOG(200,"dt_Imm8s src @ %08x target:%08x opcode:%04x",addr68k,*p,ipc->opcode);
-        }
-      else
-        {
-            *p = (sint32)(sint8)((ipc->opcode >> iib->dbitpos) & 255);
-            DEBUG_LOG(200,"dt_Imm8s dst @ %08x target:%08x opcode:%04x",addr68k,*p,ipc->opcode);
-        }
-      break;
-    default:
-      break;
-    }
-  }
-  /******************* FUN ENDS HERE ***********************************/
 }
