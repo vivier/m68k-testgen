@@ -25,8 +25,8 @@ WRITE()
    echo "	extern void *opcode_${OPCODE}(void);" >>opcodes.h
 
    echo "        .align 1" >>opcodes-asm.s
-   echo ".globl _opcode_${OPCODE}" >>opcodes-asm.s
-   echo "_opcode_${OPCODE}:" >>opcodes-asm.s
+   echo ".globl opcode_${OPCODE}" >>opcodes-asm.s
+   echo "opcode_${OPCODE}:" >>opcodes-asm.s
    echo "        ${OPCODE} ${PARAMS}" >>opcodes-asm.s
    echo "        nop                " >>opcodes-asm.s
    echo "        .align 1" >>opcodes-asm.s

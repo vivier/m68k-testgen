@@ -50,8 +50,8 @@
 
 .text
         .align 1
-.globl _asmtest
-_asmtest:
+.globl asmtest
+asmtest:
 
 	pea %a6@                      /*  Setup stack frame   */
         movel %sp,%a6
@@ -139,22 +139,22 @@ ENDOFFN:
 
   ---------------------------------------------------------*/
 
-.globl _getfnptr
-_getfnptr:
+.globl getfnptr
+getfnptr:
         pea %a6@
         movel %sp,%a6
-        movel #_asmtest,%d0
+        movel #asmtest,%d0
         jra L3
         .align 1
 L3:
         unlk %a6
         rts
 
-.globl _getfnsize
-_getfnsize:
+.globl getfnsize
+getfnsize:
         pea %a6@
         movel %sp,%a6
-        movel #_asmtest,%d1
+        movel #asmtest,%d1
         movel #ENDOFFN,%d0
         subl  %d1,%d0
         jra L4
@@ -163,11 +163,11 @@ L4:
         unlk %a6
         rts
 
-.globl _getopcodeoffset
-_getopcodeoffset:
+.globl getopcodeoffset
+getopcodeoffset:
         pea %a6@
         movel %sp,%a6
-        movel #_asmtest,%d1
+        movel #asmtest,%d1
         movel #MYOPCODE,%d0
         subl  %d1,%d0
         jra L5
@@ -176,8 +176,8 @@ L5:
         unlk %a6
         rts
 
-.globl _getopcodesize
-_getopcodesize:
+.globl getopcodesize
+getopcodesize:
         pea %a6@
         movel %sp,%a6
         movel #MYOPCODE,%d1
