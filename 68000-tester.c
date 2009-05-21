@@ -194,35 +194,13 @@ void run_opcodes()
 
  size_t opc_size=0;                      // size of the opcode to test.
  uint8  *p,*q,x;                         // execution space for generator.
- int i,j,k0,k1,k2,failed=0,skippy=0,skippy2=0;
+ int i,j,k,k0,k1,k2,failed=0,skippy=0,skippy2=0;
  char c;
  char pipecmd[1024];
  uint32 testsdone=0;
 
-typedef struct binary_output
-{
- uint32 head;
- uint32 testnum;
- uint32 input_d0;
- uint32 input_d1;
- uint32 input_d2;
- uint32 input_ccr;
- uint32 separator;
- uint32 output_d0;
- uint32 output_d1;
- uint32 output_d2;
- uint32 output_ccr;
- uint32 end;
-
-} bin_output_t;
-
-bin_output_t output;
- 
-
-
  for (i=0; i<NUMOPCODES; i++) 
  {
-
 
   // setup an opcode to test.
   p=(uint8 *)test_opcodes[i]; q=opcode_to_test;
@@ -235,10 +213,6 @@ bin_output_t output;
 
   fprintf(stderr,"Copying opcode %04x to buffer\n",test_opcodes[i][0]); fflush(stderr);
 
-  //fprintf(stderr,"reading...:%d pointer is %p %p %p\n",j,opcode_divs,p,test_opcodes[i]); fflush(stderr);
-  //fprintf(fd,"opcode_bin:");
-
-
   memcpy(opcode_to_test,test_opcodes[i],16);     // copy the opcode to the generator buffer
 
   j=0; while (j<16 && opcode_to_test[j]!=0x4E && // find the NOP after the opcode so we know
@@ -246,18 +220,9 @@ bin_output_t output;
                                                  // many bytes to write over the asmtest fn.
                                                  // NOP = 0x4E71;
               
-              //fprintf(fd,"%02x%02x",opcode_to_test[j],opcode_to_test[j+1]); 
               j+=2; }
 
-  //fprintf(fd,"\n");
-
-//  fprintf(stderr,"Creating ASM function %s (%d) bytes in length\n",text_opcodes[i],j); fflush(stderr);
-//  status=create_asm_fn(opcode_to_test,j,0,0);
-//  if (status) {printf("Couldn't create asm function because:%d\n",status); exit(1);}
-
-
   fprintf(stderr,"Excercising opcode %s %d                    \n\n",text_opcodes[i],i); fflush(stderr);
-
 
   skippy=0; skippy2=0; numdiffs=0;
 
@@ -265,25 +230,23 @@ bin_output_t output;
   // for dual operand opcodes k0 should be commented out.
 
 
-#ifdef ASSEMBLE_ONLY
-  {
-  int packflag=0;
-  FILE *assembly=fopen("/mnt/next/opcode-bytes.txt","a");
-  fprintf(assembly,"Testing %s :",text_opcodes[i]); fflush(assembly);
-  fprintf(stderr,"Testing %s :",text_opcodes[i]); fflush(stderr);
-  fclose(assembly);
-
-  status=create_asm_fn(opcode_to_test,j,orgd2,packflag);
-  if (status) {printf("Couldn't create asm function because:%d\n",status); exit(1);}
-  }
-
-#else
-
-
  orgd2=0;
  //for (k0=0;  (orgd2=test_pattern[k0])!=0xdeadbeef && skippy2<65536; k0++)  // only used if you have 3 operands! comment out otherwise.
   {
    int packflag=0;
+
+  if (fd!=NULL) pclose(fd);
+
+  sprintf(pipecmd,GZIP" -1 >/mnt/next/m68040-opcode-%s.d2=%08x.bin.gz",text_opcodes[i],orgd2);
+  // sprintf(pipecmd,GZIP" -1 >/mnt/next/m68040-opcode-%s.bin.gz",text_opcodes[i]); //no-d2
+  fprintf(stderr,"\nOpening pipe to %s\n\n",pipecmd);
+  fd=popen(pipecmd,"w");
+  if (!fd) {perror("Could not open gzip pipe."); exit(1);}
+
+  fprintf(fd,"opcode_bin:");
+  for (k = 0; k < j; k+= 2)
+    fprintf(fd,"%02x%02x",opcode_to_test[k],opcode_to_test[k+1]);
+  fprintf(fd,"\n");
  
   //---------------------------------
   if ((text_opcodes[i][0]=='p'  && // avoid divide by zero. (DIV[U/S] is word size only hence 0xffff)
@@ -309,13 +272,6 @@ bin_output_t output;
   if (status) {printf("Couldn't create asm function because:%d\n",status); exit(1);}
   //---------------------------------
 
-  if (fd!=NULL) pclose(fd);
-
-  sprintf(pipecmd,GZIP" -1 >/mnt/next/m68040-opcode-%s.d2=%08x.bin.gz",text_opcodes[i],orgd2);
-  // sprintf(pipecmd,GZIP" -1 >/mnt/next/m68040-opcode-%s.bin.gz",text_opcodes[i]); //no-d2
-  fprintf(stderr,"\nOpening pipe to %s\n\n",pipecmd);
-  fd=popen(pipecmd,"w");
-  if (!fd) {perror("Could not open gzip pipe."); exit(1);}
 
   for (k1=0;  (orgd0=test_pattern[k1])!=0xdeadbeef && skippy2<65536; k1++)
    {
@@ -357,33 +313,12 @@ bin_output_t output;
          // sanity check - might not be needed.
          if (xccr!=m68ccrout) {fprintf(stderr,"xccr!=m68ccrout! %d!=%d\n",xccr,m68ccrout); exit(1);}
 
-         // report differences and flag with a * where it's different for easy viewing.
-         // deltad0, deltad1, and deltaflags are written as text for easy searching of output.
-
-
-
-        // diffd0=gend0^m68d0;
-        // diffd1=gend1^m68d1;
-        // diffd2=gend1^m68d2;
-        // diffccrout=(genccrout^m68ccrout) & 31;
-        // failed=( diffd0 || diffd1 || diffccrout);
-
-
-          output.head     =0x00068040;
-          output.separator=0x000c0ffe;
-          output.end      =0xfff68040;
-          output.testnum  =testsdone;
-  
-          output.input_d0 =orgd0;
-          output.input_d1 =orgd1;
-          output.input_d2 =orgd2;
-          output.input_ccr=(uint32)ccrin;
-          output.output_d0=m68d0;
-          output.output_d1=m68d1;
-          output.output_d2=m68d2;
-          output.output_ccr=(uint32)m68ccrout;
-
-	  fwrite(&output,48,1,fd);
+	  fprintf(fd, "broken opcode: %s\n",text_opcodes[i]);
+          fprintf(fd, "before d0=%08lx    d1=%08lx    CCR=%s (%d)\n"  ,orgd0,orgd1,getccr(ccrin),ccrin);
+          fprintf(fd, "M68K   d0=%08lx    d1=%08lx    CCR=%s (%d)\n"  ,m68d0,m68d1,getccr(m68ccrout),m68ccrout); 
+          fprintf(fd, "GEN    d0=%08lx    d1=%08lx    CCR=%s (%d)\n\n",
+                gend0, gend1,
+                getccr(genccrout), genccrout);
 
           if (failed) numdiffs++;
           // if we did one whole round of flags, suppress the rest of the output for other rounds.
@@ -404,7 +339,6 @@ bin_output_t output;
   
   fprintf(stderr,"\n%ld errors of %ld tests done for %s (%02x%02x)                                  \n\n",numdiffs,testsdone,text_opcodes[i],opcode_to_test[0],opcode_to_test[1]); 
   
-#endif
  } // end of opcode loop.
 
  fprintf(stderr,"                                                                \n\n"); 
