@@ -1,15 +1,15 @@
-/**************************************************************************************\
-*                               Generator Voltmeter                                    *
-*                                                                                      *
-*                     Copyright (C) MMIV Ray A. Arachelian                             *
-*                               All Rights Reserved                                    *
-*               Released under the terms of the GNU GPL 2.0 License                    *
-*                                                                                      *
-*                                                                                      *
-*                          MC68000 correctness tester.                                 *
-*                                                                                      *
-*                                                                                      *
-\**************************************************************************************/
+/****************************************************************************\
+*                          Generator Voltmeter                               *
+*                                                                            *
+*                Copyright (C) MMIV Ray A. Arachelian                        *
+*                          All Rights Reserved                               *
+*          Released under the terms of the GNU GPL 2.0 License               *
+*                                                                            *
+*                                                                            *
+*                     MC68000 correctness tester.                            *
+*                                                                            *
+*                                                                            *
+\****************************************************************************/
 
 #define GZIP "/bin/gzip"
 
