@@ -52,6 +52,8 @@ typedef signed int   int32;
 
 #include "opcodes.h"
 
+#define DEFAULT_DIR "."
+
 extern uint16 *test_opcodes[NUMOPCODES];
 extern char   *text_opcodes[NUMOPCODES];
 extern int    pcount_opcodes[NUMOPCODES];
@@ -138,7 +140,7 @@ static int create_asm_fn(uint8 *newopcode,size_t size, uint32 orgd2, int packfla
     return 0;
 }
 
-static void run_opcodes(const char *directory)
+static void run_opcodes(const char *directory, const char *compress)
 {
  FILE *fd=NULL;
  int status;
@@ -197,11 +199,37 @@ static void run_opcodes(const char *directory)
 
   if (fd!=NULL) pclose(fd);
 
-  sprintf(pipecmd,GZIP" -1 > %s/m68040-opcode-%s.d2=%08x.bin.gz", directory, text_opcodes[i],orgd2);
-  // sprintf(pipecmd,GZIP" -1 > %s/m68040-opcode-%s.bin.gz", directory, text_opcodes[i]); //no-d2
-  fprintf(stderr,"\nOpening pipe to %s\n\n",pipecmd);
-  fd=popen(pipecmd,"w");
-  if (!fd) {perror("Could not open gzip pipe."); exit(1);}
+  if (compress) {
+    char *name = basename(compress);
+
+#if 1
+    sprintf(pipecmd, "%s > %s/m68040-opcode-%s.d2=%08x.txt.%c%c",
+	    compress, directory, text_opcodes[i], orgd2, name[0], name[1]);
+#else
+    // no-d2
+    sprintf(pipecmd, "%s > %s/m68040-opcode-%s.txt.%c%c",
+	    compress, directory, text_opcodes[i], name[0], name[1]);
+#endif
+
+    fprintf(stderr,"\nOpening pipe to %s\n\n",pipecmd);
+
+    fd = popen(pipecmd,"w");
+    if (!fd) {
+      perror("Could not open gzip pipe.");
+      exit(1);
+    }
+  } else {
+    sprintf(pipecmd, "%s/m68040-opcode-%s.d2=%08x.txt",
+	    directory, text_opcodes[i], orgd2);
+
+    fprintf(stderr,"\nOpening file %s\n\n",pipecmd);
+
+    fd = fopen(pipecmd, "w");
+    if (!fd) {
+      perror("Could not open file.");
+      exit(1);
+    }
+  }
 
   fprintf(fd,"opcode_bin:");
   for (k = 0; k < j; k+= 2)
@@ -301,28 +329,42 @@ static void run_opcodes(const char *directory)
 
 static void Usage(int argc, char **argv)
 {
-	fprintf(stderr, "Usage: %s [-d|--directory <directory>]\n", argv[0]);
+	fprintf(stderr, "Usage: %s [-d|--directory <directory>][-c|--compress <tool>\n", argv[0]);
+	fprintf(stderr,
+		"    -d|--directory    define directory where to save data (Default \""DEFAULT_DIR"\")\n");
+	fprintf(stderr,
+		"    -c|--compress     define the command used to compress data\n");
+	fprintf(stderr, "                      (Default no compression)\n");
+	fprintf(stderr, "\nExample:\n");
+	fprintf(stderr, "    %s --directory=/mnt/next --compress=\"gzip -1\"\n", argv[0]);
+	fprintf(stderr, "\n");
 }
 
 int main(int argc, char **argv)
 {
 	int option_index = 0;
-	char *directory = ".";
+	char *directory = DEFAULT_DIR;
+	char *compress = NULL;
 	static struct option long_options[] = {
 		{ "directory", 1, NULL, 'd' },
+		{ "compress", 1, NULL, 'c' },
 		{ "help", 0, NULL, 'h' },
 		{0, 0, 0, 0}
 	};
 	int c;
 
 	while (1) {
-		c = getopt_long(argc, argv, "hd:", long_options, &option_index);
+		c = getopt_long(argc, argv, "hd:c:",
+				long_options, &option_index);
         	if (c == -1)
 			break;
 
 		switch(c) {
 		case 'd':
 			directory = optarg;
+			break;
+		case 'c':
+			compress = optarg;
 			break;
 		case 'h':
 		case '?':
@@ -354,5 +396,5 @@ int main(int argc, char **argv)
 
 	init_opcodes();
 
-	run_opcodes(directory); 
+	run_opcodes(directory, compress); 
 }

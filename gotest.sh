@@ -18,7 +18,7 @@ RUNTEST()
    fi
    
    echo Running $1 $2 test...
-   ./m68k-testgen --directory=/mnt/next
+   ./m68k-testgen --directory=/mnt/next --compress="gzip -1"
    echo done $1 $2 test.
    echo 
 }
