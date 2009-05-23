@@ -315,10 +315,10 @@ static void run_opcodes(const char *directory, const char *compress)
       } // end of k1 loop
       if (pcount_opcodes[i]==1) break;  // if there's only one param for this opcode, don't loop on k1
  } // end of k0 loop
+  
+  fprintf(fd,"\n%ld errors of %ld tests done for %s (%02x%02x)                                  \n\n",numdiffs,testsdone,text_opcodes[i],opcode_to_test[0],opcode_to_test[1]); 
 
   if (fd!=NULL) pclose(fd);
-  
-  fprintf(stderr,"\n%ld errors of %ld tests done for %s (%02x%02x)                                  \n\n",numdiffs,testsdone,text_opcodes[i],opcode_to_test[0],opcode_to_test[1]); 
   
  } // end of opcode loop.
 
