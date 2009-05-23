@@ -27,16 +27,15 @@
 
 #include <signal.h>
 #include <getopt.h>
+#include <libgen.h>
 
 typedef unsigned char  uint8;
 typedef unsigned short uint16;
 typedef unsigned int   uint32;
 
-
 typedef signed char  sint8;
 typedef signed short sint16;
 typedef signed int   sint32;
-
 
 typedef signed char  int8;
 typedef signed short int16;
@@ -202,7 +201,7 @@ static void run_opcodes(const char *directory, const char *compress)
   if (fd!=NULL) pclose(fd);
 
   if (compress) {
-    char *name = basename(compress);
+    char *name = basename((char*)compress);
 
 #if 1
     sprintf(pipecmd, "%s > %s/m68040-opcode-%s.d2=%08x.txt.%c%c",
@@ -391,7 +390,7 @@ int main(int argc, char **argv)
 
 	// get fn start, codesize, nopoffset, nopsizes
 
-	fnstart  = getfnptr();  
+	fnstart  = (uint32*)getfnptr();  
 	codesize = getfnsize();
 	nopoffset= getopcodeoffset();
 	nopsize  = getopcodesize();

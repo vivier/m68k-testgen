@@ -22,7 +22,7 @@ WRITE()
 
    echo "	test_opcodes[${count}]=opcode_${OPCODE}; text_opcodes[${count}]=\"${OPCODE}\"; pcount_opcodes[${count}]=$NUMPARAMS;" >>opcodes.c
    #echo "	extern uint16 *opcode_${OPCODE};" >>opcodes.h
-   echo "	extern void *opcode_${OPCODE}(void);" >>opcodes.h
+   echo "	extern void opcode_${OPCODE}(void);" >>opcodes.h
 
    echo "        .align 1" >>opcodes-asm.s
    echo ".globl opcode_${OPCODE}" >>opcodes-asm.s
