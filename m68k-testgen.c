@@ -177,12 +177,14 @@ static void run_opcodes(const char *directory, const char *compress)
 
   memcpy(opcode_to_test,test_opcodes[i],16);     // copy the opcode to the generator buffer
 
-  j=0; while (j<16 && opcode_to_test[j]!=0x4E && // find the NOP after the opcode so we know
-              opcode_to_test[j+1]!=0x71) {       // find the NOP after the opcode so we know
-                                                 // many bytes to write over the asmtest fn.
-                                                 // NOP = 0x4E71;
-              
-              j+=2; }
+  // find the NOP after the opcode so we know
+  // many bytes to write over the asmtest fn.
+
+  j=0;
+  while (j<16 && // NOP = 0x4E71;
+         !(opcode_to_test[j] ==0x4E && opcode_to_test[j+1] ==0x71)) {
+    j+=2;
+  }
 
   fprintf(stderr,"Excercising opcode %s %d                    \n\n",text_opcodes[i],i); fflush(stderr);
 
