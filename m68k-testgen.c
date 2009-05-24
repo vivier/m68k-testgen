@@ -58,36 +58,6 @@ extern char   *text_opcodes[NUMOPCODES];
 
 static uint8 opcode_to_test[4096];             // execution space for generator.
 
-static void banner(void)
-{
-
- //         .........1.........2.........3.........4.........5.........6.........7
- //         123456789012345678901234567890123456789012345678901234567890123456789012345678
-    printf("\n\n");
-    printf("-----------------------------------------------------------------------\n");
-    printf("     Generator Meter - MC68000 emulation opcode correctness tester.    \n");
-    printf("             A part of The Apple Lisa Emulator Project                 \n");
-    printf("  -------------------------------------------------------------------  \n");
-    printf("      Copyright (C) MMIV by Ray A Arachelian, All Rights Reserved      \n");
-    printf("  Released  under  the terms of  the  GNU Public License  Version 2.0  \n");
-    printf("  -------------------------------------------------------------------  \n");
-}
-
-static char *getccr(uint16 ccr)
-{
- static char text[6];
-
- text[0]=(ccr & X_FLAG) ? 'X':'.';
- text[1]=(ccr & N_FLAG) ? 'N':'.';
- text[2]=(ccr & Z_FLAG) ? 'Z':'.';
- text[3]=(ccr & V_FLAG) ? 'V':'.';
- text[4]=(ccr & C_FLAG) ? 'C':'.';
-
- text[5]=0; // terminate string
-
- return text;
-}
-
 // our assembly functions
 
 extern uint32 getfnptr(void);
@@ -101,6 +71,34 @@ extern uint16  asmtest(uint16 *ccrin, uint32 *reg1, uint32 *reg2, uint32 *reg3, 
 uint16 (*exec68k_opcode)(uint16 *ccrin, uint32 *reg1, uint32 *reg2, uint32 *reg3, uint16 *ccrout);
 
 uint32 *fnstart, codesize, nopoffset, nopsize;
+
+static void banner(void)
+{
+    printf("\n\n");
+    printf(
+"-----------------------------------------------------------------------\n"
+"     Generator Meter - MC68000 emulation opcode correctness tester.    \n"
+"             A part of The Apple Lisa Emulator Project                 \n"
+"  -------------------------------------------------------------------  \n"
+"      Copyright (C) MMIV by Ray A Arachelian, All Rights Reserved      \n"
+"  Released  under  the terms of  the  GNU Public License  Version 2.0  \n"
+"  -------------------------------------------------------------------  \n");
+}
+
+static char *getccr(uint16 ccr)
+{
+    static char text[6];
+
+    text[0]=(ccr & X_FLAG) ? 'X':'.';
+    text[1]=(ccr & N_FLAG) ? 'N':'.';
+    text[2]=(ccr & Z_FLAG) ? 'Z':'.';
+    text[3]=(ccr & V_FLAG) ? 'V':'.';
+    text[4]=(ccr & C_FLAG) ? 'C':'.';
+
+    text[5]=0; // terminate string
+
+    return text;
+}
 
 static int create_asm_fn(uint8 *newopcode,size_t size, uint32 orgd2, int packflag)
 {
@@ -331,171 +329,171 @@ static void run_opcodes(const char *directory, const char *compress,
 
 static void Usage(int argc, char **argv)
 {
-	fprintf(stderr, "Usage: %s [-d|--directory <directory>][-c|--compress <tool>][-r|--registers=<registers>]\n", argv[0]);
-	fprintf(stderr,
-		"    -d|--directory    define directory where to save data (Default \""DEFAULT_DIR"\")\n");
-	fprintf(stderr,
-		"    -c|--compress     define the command used to compress data\n");
-	fprintf(stderr, "                      (Default no compression)\n");
-	fprintf(stderr,
-		"    -r|--registers    comma separated list of registers to use\n");
-	fprintf(stderr, "                      (Default %%d0,%%d1)\n");
-	fprintf(stderr, "\nExample:\n");
-	fprintf(stderr, "    %s --directory=/mnt/next --compress=\"gzip -1\" --registers=\"%%d0,%%d1\"\n", argv[0]);
-	fprintf(stderr, "\n");
+    fprintf(stderr, "Usage: %s [-d|--directory <directory>][-c|--compress <tool>][-r|--registers=<registers>]\n", argv[0]);
+    fprintf(stderr,
+        "    -d|--directory    define directory where to save data (Default \""DEFAULT_DIR"\")\n");
+    fprintf(stderr,
+        "    -c|--compress     define the command used to compress data\n");
+    fprintf(stderr, "                      (Default no compression)\n");
+    fprintf(stderr,
+        "    -r|--registers    comma separated list of registers to use\n");
+    fprintf(stderr, "                      (Default %%d0,%%d1)\n");
+    fprintf(stderr, "\nExample:\n");
+    fprintf(stderr, "    %s --directory=/mnt/next --compress=\"gzip -1\" --registers=\"%%d0,%%d1\"\n", argv[0]);
+    fprintf(stderr, "\n");
 }
 
 static int registers_mask(const char *s, uint32 *mask)
 {
-	enum { UNKNOWN, IMMEDIAT, DATA, ADDRESS } type = UNKNOWN;
-	int reg, shift;
+    enum { UNKNOWN, IMMEDIAT, DATA, ADDRESS } type = UNKNOWN;
+    int reg, shift;
 
-	*mask = 0;
-	while(*s) {
-		switch(type) {
-		case UNKNOWN:
-			switch(*s) {
+    *mask = 0;
+    while(*s) {
+        switch(type) {
+        case UNKNOWN:
+            switch(*s) {
 
-			/* data registers */
+            /* data registers */
 
-			case 'd':
-			case 'D':
-				type = DATA;
-				break;
+            case 'd':
+            case 'D':
+                type = DATA;
+                break;
 
-			/* address registers */
+            /* address registers */
 
-			case 'A':
-			case 'a':
-				type = ADDRESS;
-				break;
+            case 'A':
+            case 'a':
+                type = ADDRESS;
+                break;
 
-			/* immediat */
+            /* immediat */
 
-			case '#':
-				type = IMMEDIAT;
-				break;
+            case '#':
+                type = IMMEDIAT;
+                break;
 
-			/* frame pointer */
+            /* frame pointer */
 
-			case 'F':
-			case 'f':
-				s++;
-				if (*s != 'p')	/* A6 */
-					return -1;
-				*mask |= 1 << (6 + AREG_SHIFT);
-				break;
-				
-			/* stack pointer */
+            case 'F':
+            case 'f':
+                s++;
+                if (*s != 'p')    /* A6 */
+                    return -1;
+                *mask |= 1 << (6 + AREG_SHIFT);
+                break;
+                
+            /* stack pointer */
 
-			case 'S':
-			case 's':
-				s++;
-				if (*s != 'p')	/* A7 */
-					return -1;
-				*mask |= 1 << (7 + AREG_SHIFT);
-				break;
-				
-			/* allowed separators */
+            case 'S':
+            case 's':
+                s++;
+                if (*s != 'p')    /* A7 */
+                    return -1;
+                *mask |= 1 << (7 + AREG_SHIFT);
+                break;
+                
+            /* allowed separators */
 
-			case ',':
-			case '%':
-			case '$':
-			case ':':
-			case '{':
-			case '}':
-			case ' ':
-				break;
-			default:
-				return -1;
-			}
-			break;
-		case DATA:
-			shift = DREG_SHIFT;
-			goto set_bit;
-		case ADDRESS:
-			shift = AREG_SHIFT;
+            case ',':
+            case '%':
+            case '$':
+            case ':':
+            case '{':
+            case '}':
+            case ' ':
+                break;
+            default:
+                return -1;
+            }
+            break;
+        case DATA:
+            shift = DREG_SHIFT;
+            goto set_bit;
+        case ADDRESS:
+            shift = AREG_SHIFT;
 set_bit:
-			reg = (*s) - '0';
-			if (reg < 0 || reg > 7)
-				return -1;
-			*mask |= 1 << (reg + shift);
-			type = UNKNOWN;
-			break;
-		case IMMEDIAT:
-			*mask |= 1 << IMM_SHIFT;
-			type = UNKNOWN;
-			break;
-		}
-		s++;
-	}
-	return 0;
+            reg = (*s) - '0';
+            if (reg < 0 || reg > 7)
+                return -1;
+            *mask |= 1 << (reg + shift);
+            type = UNKNOWN;
+            break;
+        case IMMEDIAT:
+            *mask |= 1 << IMM_SHIFT;
+            type = UNKNOWN;
+            break;
+        }
+        s++;
+    }
+    return 0;
 }
 
 int main(int argc, char **argv)
 {
-	int option_index = 0;
-	char *directory = DEFAULT_DIR;
-	char *compress = NULL;
-	static struct option long_options[] = {
-		{ "directory", 1, NULL, 'd' },
-		{ "compress", 1, NULL, 'c' },
-		{ "registers", 1, NULL, 'r' },
-		{ "help", 0, NULL, 'h' },
-		{0, 0, 0, 0}
-	};
-	int c;
-	uint32 mask = 0x3;	/* %d0,%d1 */
+    int option_index = 0;
+    char *directory = DEFAULT_DIR;
+    char *compress = NULL;
+    static struct option long_options[] = {
+        { "directory", 1, NULL, 'd' },
+        { "compress", 1, NULL, 'c' },
+        { "registers", 1, NULL, 'r' },
+        { "help", 0, NULL, 'h' },
+        {0, 0, 0, 0}
+    };
+    int c;
+    uint32 mask = 0x3;    /* %d0,%d1 */
 
-	while (1) {
-		c = getopt_long(argc, argv, "hd:c:r:",
-				long_options, &option_index);
-        	if (c == -1)
-			break;
+    while (1) {
+        c = getopt_long(argc, argv, "hd:c:r:",
+                long_options, &option_index);
+            if (c == -1)
+            break;
 
-		switch(c) {
-		case 'd':
-			directory = optarg;
-			break;
-		case 'c':
-			compress = optarg;
-			break;
-		case 'r':
-			if (registers_mask(optarg, &mask) || !mask) {
-				fprintf(stderr, "Error: Invalid registers\n");
-				Usage(argc, argv);
-				exit(1);
-			}
-			break;
-		case 'h':
-		case '?':
-			Usage(argc, argv);
-			exit(1);
-		default:
-			fprintf(stderr, "Error: unknown parameter %s\n", optarg);
-			break;
-		}
-	}
-	if (argc != optind) {
-		fprintf(stderr, "Invalid number of argument\n");
-		Usage(argc, argv);
-		exit(1);
-	}
+        switch(c) {
+        case 'd':
+            directory = optarg;
+            break;
+        case 'c':
+            compress = optarg;
+            break;
+        case 'r':
+            if (registers_mask(optarg, &mask) || !mask) {
+                fprintf(stderr, "Error: Invalid registers\n");
+                Usage(argc, argv);
+                exit(1);
+            }
+            break;
+        case 'h':
+        case '?':
+            Usage(argc, argv);
+            exit(1);
+        default:
+            fprintf(stderr, "Error: unknown parameter %s\n", optarg);
+            break;
+        }
+    }
+    if (argc != optind) {
+        fprintf(stderr, "Invalid number of argument\n");
+        Usage(argc, argv);
+        exit(1);
+    }
 
-	banner();
-	
-	/* Set the stage */
-	 
-	exec68k_opcode=NULL;                    // make sure we don't free illegally.
+    banner();
+    
+    /* Set the stage */
+     
+    exec68k_opcode=NULL; // make sure we don't free illegally.
 
-	// get fn start, codesize, nopoffset, nopsizes
+    // get fn start, codesize, nopoffset, nopsizes
 
-	fnstart  = (uint32*)getfnptr();  
-	codesize = getfnsize();
-	nopoffset= getopcodeoffset();
-	nopsize  = getopcodesize();
+    fnstart  = (uint32*)getfnptr();  
+    codesize = getfnsize();
+    nopoffset= getopcodeoffset();
+    nopsize  = getopcodesize();
 
-	init_opcodes();
+    init_opcodes();
 
-	run_opcodes(directory, compress, mask); 
+    run_opcodes(directory, compress, mask); 
 }
