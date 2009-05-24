@@ -100,38 +100,57 @@ static char *getccr(uint16 ccr)
     return text;
 }
 
-static int create_asm_fn(uint8 *newopcode,size_t size, uint32 orgd2, int packflag)
+static int create_asm_fn(uint8 *newopcode,size_t size, uint32 imm, int set_imm)
 {
     uint32 i;
-    uint8 *memory,*fnmem;
+    uint8 *memory;
 
-    if (size>nopsize) return 1;
+    if (size > nopsize)
+        return 1;
 
-    // allocate memory for it + pad it to prevent problems just incase.
+    /* allocate memory for it + pad it to prevent problems just incase. */
+
     memory=(uint8 *)malloc(codesize<65536 ? 65536:codesize+32768);
-    if (!memory) return 2;
+    if (!memory)
+        return 2;
 
-    // copy the function to the allocated memory + some padding.
-    // (should change these to do long/read+writes, but it doesn't much matter.)
+    /* copy the function to the allocated memory + some padding. */
 
     memcpy(memory,fnstart,codesize+16); 
-    //for (fnmem=(char *)fnstart, i=0; i<codesize+16; i++) memory[i]=fnmem[i];
 
-    // now overwrite the NOP's with the actual opcode we want to test.
-    if (size) for (i=0; i<size; i++)  memory[i+nopoffset]=newopcode[i];
+    /* now overwrite the NOP's with the actual opcode we want to test. */
 
-    if (packflag) {memory[nopoffset+2]= (orgd2>>8) & 0xff; memory[nopoffset+3]=(orgd2   ) & 0xff;}
+    for (i=0; i < size; i++)
+        memory[i + nopoffset] = newopcode[i];
 
-    // if size==0, that means I'm just testing the copy mechanism. :)
+    /* we have an immediate for parameter, put it in */
 
-    // Free the old fn if we had one, then assign fn pointer to newly allocated memory.
-    // this "malloc first, then free" method avoids cache coherency issues.
+    switch(set_imm) {
+    case 1:    /* 16bit immediat */
+        memory[nopoffset + 2] = (imm >> 8) & 0xff;
+        memory[nopoffset + 3] = (imm     ) & 0xff;
+        break;
+    case 2: /* 32bit immediat */
+        memory[nopoffset + 2] = (imm >> 24) & 0xff;
+        memory[nopoffset + 3] = (imm >> 16) & 0xff;
+        memory[nopoffset + 4] = (imm >> 8 ) & 0xff;
+        memory[nopoffset + 5] = (imm      ) & 0xff;
+        break;
+    default:
+        break;
+    }
 
+    /* Free the old fn if we had one, then assign fn pointer to
+     * newly allocated memory.
+     * this "malloc first, then free" method avoids cache coherency issues.
+     */
 
-    // memory leak to prevent over malloc/free'd.
+    /* memory leak to prevent over malloc/free'd. */
 
-    if (exec68k_opcode!=NULL) free(exec68k_opcode);
-    exec68k_opcode=(void *)memory;        
+    if (exec68k_opcode != NULL)
+        free(exec68k_opcode);
+
+    exec68k_opcode = (void *)memory;        
 
     return 0;
 }
