@@ -136,6 +136,68 @@ static int create_asm_fn(uint8 *newopcode,size_t size, uint32 orgd2, int packfla
     return 0;
 }
 
+static FILE * open_file(const char *directory, const char *compress,
+                        const char *name, int has_d2, uint32 orgd2)
+{
+    FILE *fd;
+    char pipecmd[1024];
+
+    if (compress) {
+        char *zip = basename((char*)compress);
+
+       if (has_d2)
+         sprintf(pipecmd, "%s > %s/m68040-opcode-%s.d2=%08x.txt.%c%c",
+          compress, directory, name, orgd2, zip[0], zip[1]);
+       else
+         sprintf(pipecmd, "%s > %s/m68040-opcode-%s.txt.%c%c",
+          compress, directory, name, zip[0], zip[1]);
+
+       fprintf(stderr,"\nOpening pipe to %s\n\n",pipecmd);
+
+       fd = popen(pipecmd,"w");
+       if (!fd) {
+         perror("Could not open gzip pipe.");
+         exit(1);
+       }
+     } else {
+
+       if (has_d2)
+         sprintf(pipecmd, "%s/m68040-opcode-%s.d2=%08x.txt",
+          directory, name, orgd2);
+       else
+         sprintf(pipecmd, "%s/m68040-opcode-%s.txt",
+          directory, name);
+
+       fprintf(stderr,"\nOpening file %s\n\n",pipecmd);
+
+       fd = fopen(pipecmd, "w");
+       if (!fd) {
+         perror("Could not open file.");
+         exit(1);
+       }
+     }
+
+    return fd;
+}
+
+static void close_file(FILE *fd, const char *compress)
+{
+    if (compress)
+        pclose(fd);
+    else
+        fclose(fd);
+}
+
+static void print_header(FILE *fd, uint8 *opcode, int opcode_size)
+{
+    int i;
+
+    fprintf(fd,"opcode_bin:");
+    for (i = 0; i < opcode_size; i+= 2)
+        fprintf(fd,"%02x%02x", opcode[i],opcode[i + 1]);
+    fprintf(fd,"\n");
+}
+
 static void run_opcodes(const char *directory, const char *compress,
 			uint32 mask)
 {
@@ -195,48 +257,14 @@ static void run_opcodes(const char *directory, const char *compress,
   do {
    int packflag=0;
 
-  if (fd!=NULL) pclose(fd);
+  if (fd!=NULL) close_file(fd, compress);
 
-  if (compress) {
-    char *name = basename((char*)compress);
+  fd = open_file(directory, compress, text_opcodes[i], DREG(2) || IMM(), orgd2);
+  if (fd == NULL)
+    exit(1);
 
-    if (DREG(2) || IMM())
-      sprintf(pipecmd, "%s > %s/m68040-opcode-%s.d2=%08x.txt.%c%c",
-	      compress, directory, text_opcodes[i], orgd2, name[0], name[1]);
-    else
-      sprintf(pipecmd, "%s > %s/m68040-opcode-%s.txt.%c%c",
-	      compress, directory, text_opcodes[i], name[0], name[1]);
+  print_header(fd, opcode_to_test, j);
 
-    fprintf(stderr,"\nOpening pipe to %s\n\n",pipecmd);
-
-    fd = popen(pipecmd,"w");
-    if (!fd) {
-      perror("Could not open gzip pipe.");
-      exit(1);
-    }
-  } else {
-
-    if (DREG(2) || IMM())
-      sprintf(pipecmd, "%s/m68040-opcode-%s.d2=%08x.txt",
-	      directory, text_opcodes[i], orgd2);
-    else
-      sprintf(pipecmd, "%s/m68040-opcode-%s.txt",
-	      directory, text_opcodes[i]);
-
-    fprintf(stderr,"\nOpening file %s\n\n",pipecmd);
-
-    fd = fopen(pipecmd, "w");
-    if (!fd) {
-      perror("Could not open file.");
-      exit(1);
-    }
-  }
-
-  fprintf(fd,"opcode_bin:");
-  for (k = 0; k < j; k+= 2)
-    fprintf(fd,"%02x%02x",opcode_to_test[k],opcode_to_test[k+1]);
-  fprintf(fd,"\n");
- 
   //---------------------------------
   if ((text_opcodes[i][0]=='p'  && // avoid divide by zero. (DIV[U/S] is word size only hence 0xffff)
        text_opcodes[i][1]=='a'  &&
@@ -318,7 +346,7 @@ static void run_opcodes(const char *directory, const char *compress,
   
   fprintf(fd,"\n%ld errors of %ld tests done for %s (%02x%02x)                                  \n\n",0,testsdone,text_opcodes[i],opcode_to_test[0],opcode_to_test[1]); 
 
-  if (fd!=NULL) pclose(fd);
+  if (fd!=NULL) close_file(fd, compress);
   
  } // end of opcode loop.
 
