@@ -2,24 +2,31 @@
 
 source ./gen-asm-include.sh
 
+DIR="/mnt/next"
+
+mkdir "$DIR"
+
 RUNTEST()
 {
-   echo Starting test for $1 $2
-   echo generating test for $1 $2...
+   OPCODE="$1"
+   PARAMS="$2"
+
+   echo Starting test for $OPCODE $PARAMS
+   echo generating test for $OPCODE $PARAMS...
 
    INIT
    count=0
-   WRITE $1 $2
+   WRITE $OPCODE $PARAMS
    FINISH
 
-   if ! make m68k-testgen
+   if ! make m68k-testgen > /dev/null
    then
       exit 1;
    fi
    
    echo Running $1 $2 test...
-   ./m68k-testgen --directory=/mnt/next --compress="gzip -1"
-   echo done $1 $2 test.
+   ./m68k-testgen --directory="$DIR" --compress="gzip -1" --registers="$PARAMS"
+   echo done $OPCODE $PARAMS test.
    echo 
 }
 

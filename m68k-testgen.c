@@ -41,6 +41,13 @@ typedef signed char  int8;
 typedef signed short int16;
 typedef signed int   int32;
 
+#define DREG_SHIFT	0
+#define AREG_SHIFT	8
+#define IMM_SHIFT	31
+#define DREG(_x)	((mask & (1 << ((_x) + DREG_SHIFT))) != 0)
+#define AREG(_x)	((mask & (1 << ((_x) + AREG_SHIFT))) != 0)
+#define IMM()		((mask & (1 << IMM_SHIFT)) != 0)
+
 #include "patterns.h"
 
 #define X_FLAG 16
@@ -139,7 +146,8 @@ static int create_asm_fn(uint8 *newopcode,size_t size, uint32 orgd2, int packfla
     return 0;
 }
 
-static void run_opcodes(const char *directory, const char *compress)
+static void run_opcodes(const char *directory, const char *compress,
+			uint32 mask)
 {
  FILE *fd=NULL;
  int status;
@@ -169,8 +177,8 @@ static void run_opcodes(const char *directory, const char *compress)
 
   fprintf(stderr,"Testing %s\n",text_opcodes[i]); fflush(stderr);
   
-  if (!p) {fprintf(stderr,"p==NULL\n"); exit(1);}
-  if (!q) {fprintf(stderr,"q==NULL\n"); exit(1);}
+  if (!p) { exit(1);}
+  if (!q) { exit(1);}
 
   fprintf(stderr,"Copying opcode %04x to buffer\n",test_opcodes[i][0]); fflush(stderr);
 
@@ -193,9 +201,12 @@ static void run_opcodes(const char *directory, const char *compress)
   // for dual operand opcodes k0 should be commented out.
 
 
- orgd2=0;
- //for (k0=0;  (orgd2=test_pattern[k0])!=0xdeadbeef && skippy2<65536; k0++)  // only used if you have 3 operands! comment out otherwise.
-  {
+  if (DREG(2) || IMM())
+    orgd2 = test_pattern[0];
+  else
+    orgd2 = 0;
+  k0 = 0;
+  do {
    int packflag=0;
 
   if (fd!=NULL) pclose(fd);
@@ -203,14 +214,12 @@ static void run_opcodes(const char *directory, const char *compress)
   if (compress) {
     char *name = basename((char*)compress);
 
-#if 1
-    sprintf(pipecmd, "%s > %s/m68040-opcode-%s.d2=%08x.txt.%c%c",
-	    compress, directory, text_opcodes[i], orgd2, name[0], name[1]);
-#else
-    // no-d2
-    sprintf(pipecmd, "%s > %s/m68040-opcode-%s.txt.%c%c",
-	    compress, directory, text_opcodes[i], name[0], name[1]);
-#endif
+    if (DREG(2) || IMM())
+      sprintf(pipecmd, "%s > %s/m68040-opcode-%s.d2=%08x.txt.%c%c",
+	      compress, directory, text_opcodes[i], orgd2, name[0], name[1]);
+    else
+      sprintf(pipecmd, "%s > %s/m68040-opcode-%s.txt.%c%c",
+	      compress, directory, text_opcodes[i], name[0], name[1]);
 
     fprintf(stderr,"\nOpening pipe to %s\n\n",pipecmd);
 
@@ -220,8 +229,13 @@ static void run_opcodes(const char *directory, const char *compress)
       exit(1);
     }
   } else {
-    sprintf(pipecmd, "%s/m68040-opcode-%s.d2=%08x.txt",
-	    directory, text_opcodes[i], orgd2);
+
+    if (DREG(2) || IMM())
+      sprintf(pipecmd, "%s/m68040-opcode-%s.d2=%08x.txt",
+	      directory, text_opcodes[i], orgd2);
+    else
+      sprintf(pipecmd, "%s/m68040-opcode-%s.txt",
+	      directory, text_opcodes[i]);
 
     fprintf(stderr,"\nOpening file %s\n\n",pipecmd);
 
@@ -255,19 +269,29 @@ static void run_opcodes(const char *directory, const char *compress)
   //---------------------------------
 
 
-  for (k1=0;  (orgd0=test_pattern[k1])!=0xdeadbeef && skippy2<65536; k1++)
-   {
-    // update display extra spaces are so we can wipe previous text. note \r not \n
-    fprintf(stderr,"%s d0=%08x,d1=%08x,d2=%08x test #%ld                 \r",text_opcodes[i],orgd0,orgd1,orgd2,testsdone);
+   if (DREG(0))
+       orgd0 = test_pattern[0];
+   else
+       orgd0 = 0;
+   k1 = 0;
+   do {
+
     for (k2=0; (orgd1=test_pattern[k2])!=0xdeadbeef; k2++)
     {
-
+      if ((testsdone & 0x3ff) == 0) {
+        fprintf(stderr,"%s ",text_opcodes[i]);
+        if (DREG(0))
+            fprintf(stderr, "d0=%08x", orgd0);
+        if (DREG(1))
+            fprintf(stderr, ",d1=%08x", orgd1);
+        if (DREG(2) || IMM())
+            fprintf(stderr, ",d2=%08x", orgd2);
+        fprintf(stderr," test #%ld                 \r", testsdone);
+      }
 
 #ifndef LIMIT_FAILURES
      skippy=0; skippy2=0;
 #endif
-
-
 
 #ifdef SKIP_CCR_TESTS
      #define CCRINC 31
@@ -313,9 +337,16 @@ static void run_opcodes(const char *directory, const char *compress)
           fflush(stdout);
          } // end of k2 
        } // end of CCRin loop
-      } // end of k1 loop
+       k1++;
+      } while (DREG(0) &&
+               (orgd0 = test_pattern[k1] )!=0xdeadbeef &&
+               skippy2 < 65536);
+
       if (pcount_opcodes[i]==1) break;  // if there's only one param for this opcode, don't loop on k1
- } // end of k0 loop
+      k0++;
+ } while ((DREG(2) || IMM()) &&
+          (orgd2 = test_pattern[k0]) != 0xdeadbeef &&
+          skippy2 < 65536);
   
   fprintf(fd,"\n%ld errors of %ld tests done for %s (%02x%02x)                                  \n\n",numdiffs,testsdone,text_opcodes[i],opcode_to_test[0],opcode_to_test[1]); 
 
@@ -330,15 +361,105 @@ static void run_opcodes(const char *directory, const char *compress)
 
 static void Usage(int argc, char **argv)
 {
-	fprintf(stderr, "Usage: %s [-d|--directory <directory>][-c|--compress <tool>\n", argv[0]);
+	fprintf(stderr, "Usage: %s [-d|--directory <directory>][-c|--compress <tool>][-r|--registers=<registers>]\n", argv[0]);
 	fprintf(stderr,
 		"    -d|--directory    define directory where to save data (Default \""DEFAULT_DIR"\")\n");
 	fprintf(stderr,
 		"    -c|--compress     define the command used to compress data\n");
 	fprintf(stderr, "                      (Default no compression)\n");
+	fprintf(stderr,
+		"    -r|--registers    comma separated list of registers to use\n");
+	fprintf(stderr, "                      (Default %%d0,%%d1)\n");
 	fprintf(stderr, "\nExample:\n");
-	fprintf(stderr, "    %s --directory=/mnt/next --compress=\"gzip -1\"\n", argv[0]);
+	fprintf(stderr, "    %s --directory=/mnt/next --compress=\"gzip -1\" --registers=\"%%d0,%%d1\"\n", argv[0]);
 	fprintf(stderr, "\n");
+}
+
+static int registers_mask(const char *s, uint32 *mask)
+{
+	enum { UNKNOWN, IMMEDIAT, DATA, ADDRESS } type = UNKNOWN;
+	int reg, shift;
+
+	*mask = 0;
+	while(*s) {
+		switch(type) {
+		case UNKNOWN:
+			switch(*s) {
+
+			/* data registers */
+
+			case 'd':
+			case 'D':
+				type = DATA;
+				break;
+
+			/* address registers */
+
+			case 'A':
+			case 'a':
+				type = ADDRESS;
+				break;
+
+			/* immediat */
+
+			case '#':
+				type = IMMEDIAT;
+				break;
+
+			/* frame pointer */
+
+			case 'F':
+			case 'f':
+				s++;
+				if (*s != 'p')	/* A6 */
+					return -1;
+				*mask |= 1 << (6 + AREG_SHIFT);
+				break;
+				
+			/* stack pointer */
+
+			case 'S':
+			case 's':
+				s++;
+				if (*s != 'p')	/* A7 */
+					return -1;
+				*mask |= 1 << (7 + AREG_SHIFT);
+				break;
+				
+			/* allowed separators */
+
+			case ',':
+			case '%':
+			case '$':
+			case ':':
+			case '{':
+			case '}':
+			case ' ':
+				break;
+			default:
+				return -1;
+			}
+			break;
+		case DATA:
+			shift = DREG_SHIFT;
+			goto set_bit;
+		case ADDRESS:
+			shift = AREG_SHIFT;
+set_bit:
+			reg = (*s) - '0';
+			if (reg < 0 || reg > 7)
+				return -1;
+			*mask |= 1 << (reg + shift);
+			type = UNKNOWN;
+			break;
+		case IMMEDIAT:
+			*mask |= 1 << IMM_SHIFT;
+			type = UNKNOWN;
+			break;
+		}
+		s++;
+	}
+	return 0;
 }
 
 int main(int argc, char **argv)
@@ -349,13 +470,15 @@ int main(int argc, char **argv)
 	static struct option long_options[] = {
 		{ "directory", 1, NULL, 'd' },
 		{ "compress", 1, NULL, 'c' },
+		{ "registers", 1, NULL, 'r' },
 		{ "help", 0, NULL, 'h' },
 		{0, 0, 0, 0}
 	};
 	int c;
+	uint32 mask = 0x3;	/* %d0,%d1 */
 
 	while (1) {
-		c = getopt_long(argc, argv, "hd:c:",
+		c = getopt_long(argc, argv, "hd:c:r:",
 				long_options, &option_index);
         	if (c == -1)
 			break;
@@ -366,6 +489,13 @@ int main(int argc, char **argv)
 			break;
 		case 'c':
 			compress = optarg;
+			break;
+		case 'r':
+			if (registers_mask(optarg, &mask) || !mask) {
+				fprintf(stderr, "Error: Invalid registers\n");
+				Usage(argc, argv);
+				exit(1);
+			}
 			break;
 		case 'h':
 		case '?':
@@ -397,5 +527,5 @@ int main(int argc, char **argv)
 
 	init_opcodes();
 
-	run_opcodes(directory, compress); 
+	run_opcodes(directory, compress, mask); 
 }
