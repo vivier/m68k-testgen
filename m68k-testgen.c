@@ -11,13 +11,6 @@
 *                                                                            *
 \****************************************************************************/
 
-#define GZIP "/bin/gzip"
-
-// behavior of test results.
-// #define SKIP_CCR_TESTS 1
-// #define SKIP_PASSED_TESTS 1
-// #define LIMIT_FAILURES 1
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -158,11 +151,9 @@ static void run_opcodes(const char *directory, const char *compress,
  uint32 gend0=0,    gend1=0,  gend2;     // generator d0/d1 registers
  uint32 diffd0=0,   diffd1=0, diffd2=0;  // generator d0/d1 registers
 
- long numdiffs=0;
-
  size_t opc_size=0;                      // size of the opcode to test.
  uint8  *p,*q,x;                         // execution space for generator.
- int i,j,k,k0,k1,k2,failed=0,skippy=0,skippy2=0;
+ int i,j,k,k0,k1,k2,failed=0;
  char c;
  char pipecmd[1024];
  uint32 testsdone=0;
@@ -193,8 +184,6 @@ static void run_opcodes(const char *directory, const char *compress,
   }
 
   fprintf(stderr,"Excercising opcode %s %d                    \n\n",text_opcodes[i],i); fflush(stderr);
-
-  skippy=0; skippy2=0; numdiffs=0;
 
   // single operand opcodes, both k0 and k1 need to be commented out.
   // for dual operand opcodes k0 should be commented out.
@@ -288,17 +277,7 @@ static void run_opcodes(const char *directory, const char *compress,
         fprintf(stderr," test #%ld                 \r", testsdone);
       }
 
-#ifndef LIMIT_FAILURES
-     skippy=0; skippy2=0;
-#endif
-
-#ifdef SKIP_CCR_TESTS
-     #define CCRINC 31
-#else
-     #define CCRINC  1
-#endif
-
-     for (ccrin=0,skippy=0; ccrin<32; ccrin+=CCRINC) // test all combinations of flags.
+     for (ccrin=0; ccrin<32; ccrin++) // test all combinations of flags.
       {
         if (text_opcodes[i][0]=='d'  && // avoid divide by zero. (DIV[U/S] is word size only hence 0xffff)
             text_opcodes[i][1]=='i'  &&
@@ -325,28 +304,21 @@ static void run_opcodes(const char *directory, const char *compress,
                 gend0, gend1,
                 getccr(genccrout), genccrout);
 
-          if (failed) numdiffs++;
           // if we did one whole round of flags, suppress the rest of the output for other rounds.
           // since most of our output is because of flags...
 
-#ifdef LIMIT_FAILURES
- 	  if (ccrin==31 && k1>0) skippy=30; 
-	  else skippy2++;
-#endif
           fflush(stdout);
          } // end of k2 
        } // end of CCRin loop
        k1++;
       } while (DREG(0) &&
-               (orgd0 = test_pattern[k1] )!=0xdeadbeef &&
-               skippy2 < 65536);
+               (orgd0 = test_pattern[k1] )!=0xdeadbeef);
 
       k0++;
  } while ((DREG(2) || IMM()) &&
-          (orgd2 = test_pattern[k0]) != 0xdeadbeef &&
-          skippy2 < 65536);
+          (orgd2 = test_pattern[k0]) != 0xdeadbeef);
   
-  fprintf(fd,"\n%ld errors of %ld tests done for %s (%02x%02x)                                  \n\n",numdiffs,testsdone,text_opcodes[i],opcode_to_test[0],opcode_to_test[1]); 
+  fprintf(fd,"\n%ld errors of %ld tests done for %s (%02x%02x)                                  \n\n",0,testsdone,text_opcodes[i],opcode_to_test[0],opcode_to_test[1]); 
 
   if (fd!=NULL) pclose(fd);
   
