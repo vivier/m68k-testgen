@@ -62,7 +62,6 @@ typedef signed int   int32;
 
 extern uint16 *test_opcodes[NUMOPCODES];
 extern char   *text_opcodes[NUMOPCODES];
-extern int    pcount_opcodes[NUMOPCODES];
 
 static uint8 opcode_to_test[4096];             // execution space for generator.
 
@@ -342,7 +341,6 @@ static void run_opcodes(const char *directory, const char *compress,
                (orgd0 = test_pattern[k1] )!=0xdeadbeef &&
                skippy2 < 65536);
 
-      if (pcount_opcodes[i]==1) break;  // if there's only one param for this opcode, don't loop on k1
       k0++;
  } while ((DREG(2) || IMM()) &&
           (orgd2 = test_pattern[k0]) != 0xdeadbeef &&

@@ -11,16 +11,13 @@
 
 WRITE() 
 {
- OPCODE=$1
- PARAMS=$2
- NUMPARAMS=2
-
-   if [ "$PARAMS" = "d1" ]; then NUMPARAMS=1; fi
+   OPCODE=$1
+   PARAMS=$2
 
    echo generating assembly for $OPCODE $PARAMS 
    ##echo WRITE \"$OPCODE\" \"$PARAMS\"  >>gen-asm-list.sh
 
-   echo "	test_opcodes[${count}]=opcode_${OPCODE}; text_opcodes[${count}]=\"${OPCODE}\"; pcount_opcodes[${count}]=$NUMPARAMS;" >>opcodes.c
+   echo "	test_opcodes[${count}]=opcode_${OPCODE}; text_opcodes[${count}]=\"${OPCODE}\";" >>opcodes.c
    #echo "	extern uint16 *opcode_${OPCODE};" >>opcodes.h
    echo "	extern void opcode_${OPCODE}(void);" >>opcodes.h
 
@@ -76,7 +73,6 @@ echo "void (*test_opcodes[NUMOPCODES])(void);" >>opcodes.c
 #echo "uint16 *test_opcodes[NUMOPCODES];" >>opcodes.c
 
 echo "char   *text_opcodes[NUMOPCODES];" >>opcodes.c
-echo "int   pcount_opcodes[NUMOPCODES];" >>opcodes.c
 echo ""                           >>opcodes.c
 echo "void init_opcodes(void)"    >>opcodes.c
 echo "{"                          >>opcodes.c
