@@ -363,7 +363,7 @@ static void run_opcodes(const char *directory, const char *compress,
  } while ((DREG(2) || IMM()) &&
           (orgd2 = test_pattern[k0]) != 0xdeadbeef);
   
-  fprintf(fd,"\n%ld errors of %ld tests done for %s (%02x%02x)                                  \n\n",0,testsdone,text_opcodes[i],opcode_to_test[0],opcode_to_test[1]); 
+  fprintf(fd,"%ld errors of %ld tests done for %s (%02x%02x)                                  \n",0,testsdone,text_opcodes[i],opcode_to_test[0],opcode_to_test[1]); 
 
   if (fd!=NULL) close_file(fd, compress);
   
