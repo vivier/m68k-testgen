@@ -246,21 +246,13 @@ static void run_opcodes(const char *directory, const char *compress,
 
   // setup an opcode to test.
   p=(uint8 *)test_opcodes[i]; q=opcode_to_test;
-  j=0;
 
   if (verbose > 1) {
-      fprintf(stderr, "Testing %s\n",text_opcodes[i]);
+       fprintf(stderr, "Testing %s (0x%04x)\n",
+               text_opcodes[i], test_opcodes[i][0]);
       fflush(stderr);
   }
   
-  if (!p) { exit(1);}
-  if (!q) { exit(1);}
-
-  if (verbose > 1) {
-      fprintf(stderr, "Copying opcode %04x to buffer\n",test_opcodes[i][0]);
-      fflush(stderr);
-  }
-
   memcpy(opcode_to_test,test_opcodes[i],16);     // copy the opcode to the generator buffer
 
   // find the NOP after the opcode so we know
@@ -388,7 +380,7 @@ static void run_opcodes(const char *directory, const char *compress,
  } // end of opcode loop.
 
  if (verbose) 
-   fprintf(stderr,"                                                                \n\n"); 
+   fprintf(stderr,"                                                                \r"); 
  // add a newline to linefeed since update display above doesn't.
  return;
 }

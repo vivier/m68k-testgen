@@ -80,9 +80,6 @@ count=0;
 
 FINISH()
 {
- echo "	test_opcodes[${count}]=NULL;" >>opcodes.c
-
- count=$(($count+1));   
  echo "#define NUMOPCODES $count" >>opcodes.h
 
  echo "}" >>opcodes.c
