@@ -51,8 +51,6 @@ typedef signed int   int32;
 
 #include "opcodes.h"
 
-#define DEFAULT_DIR "."
-
 extern uint16 *test_opcodes[NUMOPCODES];
 extern char   *text_opcodes[NUMOPCODES];
 
@@ -157,74 +155,18 @@ static int create_asm_fn(uint8 *newopcode,size_t size, uint32 imm, int set_imm)
     return 0;
 }
 
-static FILE * open_file(const char *directory, const char *compress,
-                        const char *name, int has_d2, uint32 orgd2)
-{
-    FILE *fd;
-    char pipecmd[1024];
-
-    if (compress) {
-        char *zip = basename((char*)compress);
-
-       if (has_d2)
-         sprintf(pipecmd, "%s > %s/m68040-opcode-%s.d2=%08x.txt.%c%c",
-          compress, directory, name, orgd2, zip[0], zip[1]);
-       else
-         sprintf(pipecmd, "%s > %s/m68040-opcode-%s.txt.%c%c",
-          compress, directory, name, zip[0], zip[1]);
-
-       if (verbose > 1)
-           fprintf(stderr,"\nOpening pipe to %s\n\n",pipecmd);
-
-       fd = popen(pipecmd,"w");
-       if (!fd) {
-         perror("Could not open gzip pipe.");
-         exit(1);
-       }
-     } else {
-
-       if (has_d2)
-         sprintf(pipecmd, "%s/m68040-opcode-%s.d2=%08x.txt",
-          directory, name, orgd2);
-       else
-         sprintf(pipecmd, "%s/m68040-opcode-%s.txt",
-          directory, name);
-
-       if (verbose > 1)
-           fprintf(stderr,"\nOpening file %s\n\n",pipecmd);
-
-       fd = fopen(pipecmd, "w");
-       if (!fd) {
-         perror("Could not open file.");
-         exit(1);
-       }
-     }
-
-    return fd;
-}
-
-static void close_file(FILE *fd, const char *compress)
-{
-    if (compress)
-        pclose(fd);
-    else
-        fclose(fd);
-}
-
-static void print_header(FILE *fd, uint8 *opcode, int opcode_size)
+static void print_header(uint8 *opcode, int opcode_size)
 {
     int i;
 
-    fprintf(fd,"opcode_bin:");
+    printf("opcode_bin:");
     for (i = 0; i < opcode_size; i+= 2)
-        fprintf(fd,"%02x%02x", opcode[i],opcode[i + 1]);
-    fprintf(fd,"\n");
+        printf("%02x%02x", opcode[i],opcode[i + 1]);
+    printf("\n");
 }
 
-static void run_opcodes(const char *directory, const char *compress,
-			uint32 mask)
+static void run_opcodes(uint32 mask)
 {
- FILE *fd=NULL;
  int status;
  uint16 ccrin=0xff;                      // condition code register  in
  uint16 m68ccrout=0xff, genccrout=0xff;  // condition code registers out
@@ -282,13 +224,7 @@ static void run_opcodes(const char *directory, const char *compress,
   do {
    int packflag=0;
 
-  if (fd!=NULL) close_file(fd, compress);
-
-  fd = open_file(directory, compress, text_opcodes[i], DREG(2) || IMM(), orgd2);
-  if (fd == NULL)
-    exit(1);
-
-  print_header(fd, opcode_to_test, j);
+  print_header(opcode_to_test, j);
 
   //---------------------------------
   if ((text_opcodes[i][0]=='p'  && // avoid divide by zero. (DIV[U/S] is word size only hence 0xffff)
@@ -352,10 +288,10 @@ static void run_opcodes(const char *directory, const char *compress,
          // sanity check - might not be needed.
          if (xccr!=m68ccrout) {fprintf(stderr,"xccr!=m68ccrout! %d!=%d\n",xccr,m68ccrout); exit(1);}
 
-	  fprintf(fd, "broken opcode: %s\n",text_opcodes[i]);
-          fprintf(fd, "before d0=%08lx    d1=%08lx    CCR=%s (%d)\n"  ,orgd0,orgd1,getccr(ccrin),ccrin);
-          fprintf(fd, "M68K   d0=%08lx    d1=%08lx    CCR=%s (%d)\n"  ,m68d0,m68d1,getccr(m68ccrout),m68ccrout); 
-          fprintf(fd, "GEN    d0=%08lx    d1=%08lx    CCR=%s (%d)\n\n",
+	  printf("broken opcode: %s\n",text_opcodes[i]);
+          printf("before d0=%08lx    d1=%08lx    CCR=%s (%d)\n"  ,orgd0,orgd1,getccr(ccrin),ccrin);
+          printf("M68K   d0=%08lx    d1=%08lx    CCR=%s (%d)\n"  ,m68d0,m68d1,getccr(m68ccrout),m68ccrout); 
+          printf("GEN    d0=%08lx    d1=%08lx    CCR=%s (%d)\n\n",
                 gend0, gend1,
                 getccr(genccrout), genccrout);
 
@@ -373,10 +309,8 @@ static void run_opcodes(const char *directory, const char *compress,
  } while ((DREG(2) || IMM()) &&
           (orgd2 = test_pattern[k0]) != 0xdeadbeef);
   
-  fprintf(fd,"%ld errors of %ld tests done for %s (%02x%02x)                                  \n",0,testsdone,text_opcodes[i],opcode_to_test[0],opcode_to_test[1]); 
+  printf("%ld errors of %ld tests done for %s (%02x%02x)                                  \n",0,testsdone,text_opcodes[i],opcode_to_test[0],opcode_to_test[1]); 
 
-  if (fd!=NULL) close_file(fd, compress);
-  
  } // end of opcode loop.
 
  if (verbose) 
@@ -387,14 +321,9 @@ static void run_opcodes(const char *directory, const char *compress,
 
 static void Usage(int argc, char **argv)
 {
-    fprintf(stderr, "Usage: %s [-v|--verbose][-d|--directory <directory>][-c|--compress <tool>][-r|--registers=<registers>]\n", argv[0]);
+    fprintf(stderr, "Usage: %s [-v|--verbose][-r|--registers=<registers>]\n", argv[0]);
     fprintf(stderr,
         "    -v|--verbose      verbose mode (on stderr)\n");
-    fprintf(stderr,
-        "    -d|--directory    define directory where to save data (Default \""DEFAULT_DIR"\")\n");
-    fprintf(stderr,
-        "    -c|--compress     define the command used to compress data\n");
-    fprintf(stderr, "                      (Default no compression)\n");
     fprintf(stderr,
         "    -r|--registers    comma separated list of registers to use\n");
     fprintf(stderr, "                      (Default %%d0,%%d1)\n");
@@ -493,11 +422,7 @@ set_bit:
 int main(int argc, char **argv)
 {
     int option_index = 0;
-    char *directory = DEFAULT_DIR;
-    char *compress = NULL;
     static struct option long_options[] = {
-        { "directory", 1, NULL, 'd' },
-        { "compress", 1, NULL, 'c' },
         { "registers", 1, NULL, 'r' },
         { "verbose", 1, NULL, 'v' },
         { "help", 0, NULL, 'h' },
@@ -507,18 +432,12 @@ int main(int argc, char **argv)
     uint32 mask = 0x3;    /* %d0,%d1 */
 
     while (1) {
-        c = getopt_long(argc, argv, "vhd:c:r:",
+        c = getopt_long(argc, argv, "vhr:",
                 long_options, &option_index);
             if (c == -1)
             break;
 
         switch(c) {
-        case 'd':
-            directory = optarg;
-            break;
-        case 'c':
-            compress = optarg;
-            break;
         case 'r':
             if (registers_mask(optarg, &mask) || !mask) {
                 fprintf(stderr, "Error: Invalid registers\n");
@@ -560,5 +479,5 @@ int main(int argc, char **argv)
 
     init_opcodes();
 
-    run_opcodes(directory, compress, mask); 
+    run_opcodes(mask); 
 }
