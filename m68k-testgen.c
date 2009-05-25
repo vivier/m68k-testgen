@@ -72,10 +72,12 @@ uint16 (*exec68k_opcode)(uint16 *ccrin, uint32 *reg1, uint32 *reg2, uint32 *reg3
 
 uint32 *fnstart, codesize, nopoffset, nopsize;
 
+static int verbose = 0;
+
 static void banner(void)
 {
-    printf("\n\n");
-    printf(
+    fprintf(stderr, "\n\n");
+    fprintf(stderr, 
 "-----------------------------------------------------------------------\n"
 "     Generator Meter - MC68000 emulation opcode correctness tester.    \n"
 "             A part of The Apple Lisa Emulator Project                 \n"
@@ -171,7 +173,8 @@ static FILE * open_file(const char *directory, const char *compress,
          sprintf(pipecmd, "%s > %s/m68040-opcode-%s.txt.%c%c",
           compress, directory, name, zip[0], zip[1]);
 
-       fprintf(stderr,"\nOpening pipe to %s\n\n",pipecmd);
+       if (verbose > 1)
+           fprintf(stderr,"\nOpening pipe to %s\n\n",pipecmd);
 
        fd = popen(pipecmd,"w");
        if (!fd) {
@@ -187,7 +190,8 @@ static FILE * open_file(const char *directory, const char *compress,
          sprintf(pipecmd, "%s/m68040-opcode-%s.txt",
           directory, name);
 
-       fprintf(stderr,"\nOpening file %s\n\n",pipecmd);
+       if (verbose > 1)
+           fprintf(stderr,"\nOpening file %s\n\n",pipecmd);
 
        fd = fopen(pipecmd, "w");
        if (!fd) {
@@ -244,12 +248,18 @@ static void run_opcodes(const char *directory, const char *compress,
   p=(uint8 *)test_opcodes[i]; q=opcode_to_test;
   j=0;
 
-  fprintf(stderr,"Testing %s\n",text_opcodes[i]); fflush(stderr);
+  if (verbose > 1) {
+      fprintf(stderr, "Testing %s\n",text_opcodes[i]);
+      fflush(stderr);
+  }
   
   if (!p) { exit(1);}
   if (!q) { exit(1);}
 
-  fprintf(stderr,"Copying opcode %04x to buffer\n",test_opcodes[i][0]); fflush(stderr);
+  if (verbose > 1) {
+      fprintf(stderr, "Copying opcode %04x to buffer\n",test_opcodes[i][0]);
+      fflush(stderr);
+  }
 
   memcpy(opcode_to_test,test_opcodes[i],16);     // copy the opcode to the generator buffer
 
@@ -262,7 +272,11 @@ static void run_opcodes(const char *directory, const char *compress,
     j+=2;
   }
 
-  fprintf(stderr,"Excercising opcode %s %d                    \n\n",text_opcodes[i],i); fflush(stderr);
+  if (verbose > 1) {
+      fprintf(stderr, "Excercising opcode %s %d                    \n\n",
+              text_opcodes[i],i);
+      fflush(stderr);
+  }
 
   // single operand opcodes, both k0 and k1 need to be commented out.
   // for dual operand opcodes k0 should be commented out.
@@ -295,10 +309,14 @@ static void run_opcodes(const char *directory, const char *compress,
        text_opcodes[i][2]=='p'  &&
        text_opcodes[i][3]=='k'    )  )    packflag=1;
 
-  fprintf(stderr,"Creating ASM function %s (%d) bytes in length\n",text_opcodes[i],j); fflush(stderr);
+  if (verbose > 1) {
+    fprintf(stderr, "Creating ASM function %s (%d) bytes in length\n",
+            text_opcodes[i],j);
+    fflush(stderr);
+  }
 
   status=create_asm_fn(opcode_to_test,j,orgd2,packflag);
-  if (status) {printf("Couldn't create asm function because:%d\n",status); exit(1);}
+  if (status) {fprintf(stderr, "Couldn't create asm function because:%d\n",status); exit(1);}
   //---------------------------------
 
 
@@ -311,7 +329,7 @@ static void run_opcodes(const char *directory, const char *compress,
 
     for (k2=0; (orgd1=test_pattern[k2])!=0xdeadbeef; k2++)
     {
-      if ((testsdone & 0x3ff) == 0) {
+      if (verbose && (testsdone & 0x3ff) == 0) {
         fprintf(stderr,"%s ",text_opcodes[i]);
         if (DREG(0))
             fprintf(stderr, "d0=%08x", orgd0);
@@ -369,14 +387,17 @@ static void run_opcodes(const char *directory, const char *compress,
   
  } // end of opcode loop.
 
- fprintf(stderr,"                                                                \n\n"); 
+ if (verbose) 
+   fprintf(stderr,"                                                                \n\n"); 
  // add a newline to linefeed since update display above doesn't.
  return;
 }
 
 static void Usage(int argc, char **argv)
 {
-    fprintf(stderr, "Usage: %s [-d|--directory <directory>][-c|--compress <tool>][-r|--registers=<registers>]\n", argv[0]);
+    fprintf(stderr, "Usage: %s [-v|--verbose][-d|--directory <directory>][-c|--compress <tool>][-r|--registers=<registers>]\n", argv[0]);
+    fprintf(stderr,
+        "    -v|--verbose      verbose mode (on stderr)\n");
     fprintf(stderr,
         "    -d|--directory    define directory where to save data (Default \""DEFAULT_DIR"\")\n");
     fprintf(stderr,
@@ -486,6 +507,7 @@ int main(int argc, char **argv)
         { "directory", 1, NULL, 'd' },
         { "compress", 1, NULL, 'c' },
         { "registers", 1, NULL, 'r' },
+        { "verbose", 1, NULL, 'v' },
         { "help", 0, NULL, 'h' },
         {0, 0, 0, 0}
     };
@@ -493,7 +515,7 @@ int main(int argc, char **argv)
     uint32 mask = 0x3;    /* %d0,%d1 */
 
     while (1) {
-        c = getopt_long(argc, argv, "hd:c:r:",
+        c = getopt_long(argc, argv, "vhd:c:r:",
                 long_options, &option_index);
             if (c == -1)
             break;
@@ -512,6 +534,9 @@ int main(int argc, char **argv)
                 exit(1);
             }
             break;
+        case 'v':
+            verbose++;
+            break;
         case 'h':
         case '?':
             Usage(argc, argv);
@@ -527,7 +552,8 @@ int main(int argc, char **argv)
         exit(1);
     }
 
-    banner();
+    if (verbose > 1)
+        banner();
     
     /* Set the stage */
      

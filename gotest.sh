@@ -12,7 +12,6 @@ RUNTEST()
    PARAMS="$2"
 
    echo Starting test for $OPCODE $PARAMS
-   echo generating test for $OPCODE $PARAMS...
 
    INIT
    count=0
@@ -24,8 +23,7 @@ RUNTEST()
       exit 1;
    fi
    
-   echo Running $1 $2 test...
-   ./m68k-testgen --directory="$DIR" --compress="gzip -1" --registers="$PARAMS"
+   ./m68k-testgen -v --directory="$DIR" --compress="gzip -1" --registers="$PARAMS"
    echo done $OPCODE $PARAMS test.
    echo 
 }

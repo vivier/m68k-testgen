@@ -14,9 +14,6 @@ WRITE()
    OPCODE=$1
    PARAMS=$2
 
-   echo generating assembly for $OPCODE $PARAMS 
-   ##echo WRITE \"$OPCODE\" \"$PARAMS\"  >>gen-asm-list.sh
-
    echo "	test_opcodes[${count}]=opcode_${OPCODE}; text_opcodes[${count}]=\"${OPCODE}\";" >>opcodes.c
    #echo "	extern uint16 *opcode_${OPCODE};" >>opcodes.h
    echo "	extern void opcode_${OPCODE}(void);" >>opcodes.h
