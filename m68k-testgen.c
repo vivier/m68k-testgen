@@ -291,11 +291,18 @@ static void run_opcodes(uint32 mask)
          if (xccr!=m68ccrout) {fprintf(stderr,"xccr!=m68ccrout! %d!=%d\n",xccr,m68ccrout); exit(1);}
 
 	  printf("broken opcode: %s\n",text_opcodes[i]);
-          printf("before d0=%08lx    d1=%08lx    CCR=%s (%d)\n"  ,orgd0,orgd1,getccr(ccrin),ccrin);
-          printf("M68K   d0=%08lx    d1=%08lx    CCR=%s (%d)\n"  ,m68d0,m68d1,getccr(m68ccrout),m68ccrout); 
-          printf("GEN    d0=%08lx    d1=%08lx    CCR=%s (%d)\n\n",
-                gend0, gend1,
-                getccr(genccrout), genccrout);
+          printf("before d0=%08lx    d1=%08lx",orgd0, orgd1);
+          if (DREG(2))
+              printf("    d2=%08lx", orgd2);
+          printf("    CCR=%s (%d)\n", getccr(ccrin), ccrin);
+          printf("M68K   d0=%08lx    d1=%08lx", m68d0, m68d1);
+          if (DREG(2))
+              printf("    d2=%08lx", m68d2);
+          printf("    CCR=%s (%d)\n", getccr(m68ccrout), m68ccrout); 
+          printf("GEN    d0=%08lx    d1=%08lx", gend0, gend1);
+          if (DREG(2))
+              printf("    d2=%08lx", gend2);
+          printf("    CCR=%s (%d)\n\n", getccr(genccrout), genccrout);
 
           // if we did one whole round of flags, suppress the rest of the output for other rounds.
           // since most of our output is because of flags...
