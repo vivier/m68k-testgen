@@ -163,7 +163,7 @@ static void print_header(uint8 *opcode, int opcode_size)
 
     printf("opcode_bin:");
     for (i = 0; i < opcode_size; i+= 2)
-        printf("%02x%02x", opcode[i],opcode[i + 1]);
+        printf("%02x%02x ", opcode[i],opcode[i + 1]);
     printf("\n");
 }
 
