@@ -218,12 +218,11 @@ static void run_opcodes(uint32 mask)
   // for dual operand opcodes k0 should be commented out.
 
 
-  if (DREG(2) || IMM())
-    orgd2 = test_pattern[0];
-  else
-    orgd2 = 0;
   k0 = 0;
   do {
+   orgd2 = test_pattern[k0];
+   if (orgd2 == 0xdeadbeef)
+     break;
    int packflag=0;
 
   print_header(opcode_to_test, j);
@@ -250,15 +249,17 @@ static void run_opcodes(uint32 mask)
   //---------------------------------
 
 
-   if (DREG(0))
-       orgd0 = test_pattern[0];
-   else
-       orgd0 = 0;
    k1 = 0;
    do {
+    orgd0 = test_pattern[k1];
+   if (orgd0 == 0xdeadbeef)
+     break;
 
-    for (k2=0; (orgd1=test_pattern[k2])!=0xdeadbeef; k2++)
-    {
+    k2 = 0;
+    do {
+      orgd1 = test_pattern[k2];
+      if (orgd1 == 0xdeadbeef)
+        break;
       if (verbose && (testsdone & 0x3ff) == 0) {
         fprintf(stderr,"%s ",text_opcodes[i]);
         if (DREG(0))
@@ -309,15 +310,14 @@ static void run_opcodes(uint32 mask)
 
           fflush(stdout);
          } // end of k2 
-       } // end of CCRin loop
+         k2++;
+       } while (DREG(1));
        k1++;
-      } while (DREG(0) &&
-               (orgd0 = test_pattern[k1] )!=0xdeadbeef);
+      } while (DREG(0));
 
       munmap(exec68k_opcode, (codesize + PAGE_SIZE - 1) & PAGE_MASK);
       k0++;
- } while ((DREG(2) || IMM()) &&
-          (orgd2 = test_pattern[k0]) != 0xdeadbeef);
+ } while (DREG(2) || IMM());
   
   printf("%ld errors of %ld tests done for %s (%02x%02x)                                  \n",0,testsdone,text_opcodes[i],opcode_to_test[0],opcode_to_test[1]); 
 
