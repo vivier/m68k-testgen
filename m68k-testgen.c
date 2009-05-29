@@ -203,17 +203,6 @@ static void print_test_text(const char *name, cpu_stat *m68k_stat)
     printf("    CCR=%s (%d)\n",
            getccr(m68k_stat->ccr_out), m68k_stat->ccr_out); 
 
-    printf("GEN    d0=%08x    d1=%08x",
-           m68k_stat->regs_out[0], m68k_stat->regs_out[1]);
-    if (DREG(m68k_stat->mask, 2))
-        printf("    d2=%08x", m68k_stat->regs_out[2]);
-    else if (IMM16(m68k_stat->mask))
-        printf("    imm16=%08x", m68k_stat->regs_out[2]);
-    else if (IMM32(m68k_stat->mask))
-        printf("    imm32=%08x", m68k_stat->regs_out[2]);
-    printf("    CCR=%s (%d)\n",
-           getccr(m68k_stat->ccr_out), m68k_stat->ccr_out);
-
     printf("\n");
 
     fflush(stdout);
@@ -324,9 +313,6 @@ static void run_opcodes(uint32 mask)
             text_opcodes[i][1]=='i'  &&
             text_opcodes[i][2]=='v'  && (m68k_stat.regs_in[0] & 0xffff) == 0 )
             m68k_stat.regs_in[0] = 1;
-
-        // execute the opcodes, first natively under th 68040, then under generator.
-        //     execgen_opcode(&ccrin,&gend0,&gend1,&genccrout);
 
         m68k_stat.regs_out[0] = m68k_stat.regs_in[0];
         m68k_stat.regs_out[1] = m68k_stat.regs_in[1];
