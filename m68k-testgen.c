@@ -41,10 +41,12 @@ typedef signed int   int32;
 
 #define DREG_SHIFT	0
 #define AREG_SHIFT	8
-#define IMM_SHIFT	31
+#define IMM16_SHIFT	30
+#define IMM32_SHIFT	31
 #define DREG(_x)	((mask & (1 << ((_x) + DREG_SHIFT))) != 0)
 #define AREG(_x)	((mask & (1 << ((_x) + AREG_SHIFT))) != 0)
-#define IMM()		((mask & (1 << IMM_SHIFT)) != 0)
+#define IMM16()		((mask & (1 << IMM16_SHIFT)) != 0)
+#define IMM32()		((mask & (1 << IMM32_SHIFT)) != 0)
 
 #include "patterns.h"
 
@@ -184,6 +186,7 @@ static void run_opcodes(uint32 mask)
  char c;
  char pipecmd[1024];
  uint32 testsdone=0;
+ int set_imm=0;
 
  for (i=0; i<NUMOPCODES; i++) 
  {
@@ -223,20 +226,15 @@ static void run_opcodes(uint32 mask)
    orgd2 = test_pattern[k0];
    if (orgd2 == 0xdeadbeef)
      break;
-   int packflag=0;
 
   print_header(opcode_to_test, j);
 
-  //---------------------------------
-  if ((text_opcodes[i][0]=='p'  && // avoid divide by zero. (DIV[U/S] is word size only hence 0xffff)
-       text_opcodes[i][1]=='a'  &&
-       text_opcodes[i][2]=='c'  &&
-       text_opcodes[i][3]=='k'    )
-                                    ||
-      (text_opcodes[i][0]=='u'  && 
-       text_opcodes[i][1]=='n'  &&
-       text_opcodes[i][2]=='p'  &&
-       text_opcodes[i][3]=='k'    )  )    packflag=1;
+  if (IMM16())
+    set_imm = 1;
+  else if (IMM32())
+    set_imm = 2;
+  else
+    set_imm = 0;
 
   if (verbose > 1) {
     fprintf(stderr, "Creating ASM function %s (%d) bytes in length\n",
@@ -244,7 +242,7 @@ static void run_opcodes(uint32 mask)
     fflush(stderr);
   }
 
-  status=create_asm_fn(opcode_to_test,j,orgd2,packflag);
+  status=create_asm_fn(opcode_to_test,j,orgd2,set_imm);
   if (status) {fprintf(stderr, "Couldn't create asm function because:%d\n",status); exit(1);}
   //---------------------------------
 
@@ -266,8 +264,12 @@ static void run_opcodes(uint32 mask)
             fprintf(stderr, "d0=%08x", orgd0);
         if (DREG(1))
             fprintf(stderr, ",d1=%08x", orgd1);
-        if (DREG(2) || IMM())
+        if (DREG(2))
             fprintf(stderr, ",d2=%08x", orgd2);
+        else if (IMM16())
+            fprintf(stderr, ",imm16=%08x", orgd2 & 0xffff);
+        else if (IMM32())
+            fprintf(stderr, ",imm32=%08x", orgd2);
         fprintf(stderr," test #%ld                 \r", testsdone);
       }
 
@@ -295,18 +297,27 @@ static void run_opcodes(uint32 mask)
           printf("before d0=%08lx    d1=%08lx",orgd0, orgd1);
           if (DREG(2))
               printf("    d2=%08lx", orgd2);
+          else if (IMM16())
+              printf("    imm16=%08lx", orgd2);
+          else if (IMM32())
+              printf("    imm32=%08lx", orgd2);
           printf("    CCR=%s (%d)\n", getccr(ccrin), ccrin);
           printf("M68K   d0=%08lx    d1=%08lx", m68d0, m68d1);
           if (DREG(2))
               printf("    d2=%08lx", m68d2);
+          else if (IMM16())
+              printf("    imm16=%08lx", m68d2);
+          else if (IMM32())
+              printf("    imm32=%08lx", m68d2);
           printf("    CCR=%s (%d)\n", getccr(m68ccrout), m68ccrout); 
           printf("GEN    d0=%08lx    d1=%08lx", gend0, gend1);
           if (DREG(2))
               printf("    d2=%08lx", gend2);
+          else if (IMM16())
+              printf("    imm16=%08lx", gend2);
+          else if (IMM32())
+              printf("    imm32=%08lx", gend2);
           printf("    CCR=%s (%d)\n\n", getccr(genccrout), genccrout);
-
-          // if we did one whole round of flags, suppress the rest of the output for other rounds.
-          // since most of our output is because of flags...
 
           fflush(stdout);
          } // end of k2 
@@ -317,7 +328,7 @@ static void run_opcodes(uint32 mask)
 
       munmap(exec68k_opcode, (codesize + PAGE_SIZE - 1) & PAGE_MASK);
       k0++;
- } while (DREG(2) || IMM());
+ } while (DREG(2) || IMM16() || IMM32());
   
   printf("%ld errors of %ld tests done for %s (%02x%02x)                                  \n",0,testsdone,text_opcodes[i],opcode_to_test[0],opcode_to_test[1]); 
 
@@ -420,7 +431,23 @@ set_bit:
             type = UNKNOWN;
             break;
         case IMMEDIAT:
-            *mask |= 1 << IMM_SHIFT;
+            if (*s != '0')
+                return -1;
+            s++;
+            if (*s != '.') {
+                *mask |= 1 << IMM16_SHIFT;
+                s--;
+            } else {
+                s++;
+                switch(*s) {
+                    case 'w':
+                        *mask |= 1 << IMM16_SHIFT;
+                        break;
+                    case 'l':
+                        *mask |= 1 << IMM32_SHIFT;
+                        break;
+                }
+            }
             type = UNKNOWN;
             break;
         }
