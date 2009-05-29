@@ -174,17 +174,13 @@ static void run_opcodes(uint32 mask)
  int status;
  uint16 ccrin=0xff;                      // condition code register  in
  uint16 m68ccrout=0xff, genccrout=0xff;  // condition code registers out
- uint16 diffccrout=0xff, xccr=0xff;      // condition code registers out
+ uint16 xccr=0xff;      // condition code registers out
  uint32 orgd0=0,    orgd1=0,  orgd2;     // original  d0/d1 registers
  uint32 m68d0=0,    m68d1=0,  m68d2;     // m68k      d0/d1 registers
  uint32 gend0=0,    gend1=0,  gend2;     // generator d0/d1 registers
- uint32 diffd0=0,   diffd1=0, diffd2=0;  // generator d0/d1 registers
 
- size_t opc_size=0;                      // size of the opcode to test.
- uint8  *p,*q,x;                         // execution space for generator.
- int i,j,k,k0,k1,k2,failed=0;
- char c;
- char pipecmd[1024];
+ uint8  *p,*q;                         // execution space for generator.
+ int i,j,k0,k1,k2;
  uint32 testsdone=0;
  int set_imm=0;
 
@@ -270,7 +266,7 @@ static void run_opcodes(uint32 mask)
             fprintf(stderr, ",imm16=%08x", orgd2 & 0xffff);
         else if (IMM32())
             fprintf(stderr, ",imm32=%08x", orgd2);
-        fprintf(stderr," test #%ld                 \r", testsdone);
+        fprintf(stderr," test #%d                 \r", testsdone);
       }
 
      for (ccrin=0; ccrin<32; ccrin++) // test all combinations of flags.
@@ -294,29 +290,29 @@ static void run_opcodes(uint32 mask)
          if (xccr!=m68ccrout) {fprintf(stderr,"xccr!=m68ccrout! %d!=%d\n",xccr,m68ccrout); exit(1);}
 
 	  printf("broken opcode: %s\n",text_opcodes[i]);
-          printf("before d0=%08lx    d1=%08lx",orgd0, orgd1);
+          printf("before d0=%08x    d1=%08x",orgd0, orgd1);
           if (DREG(2))
-              printf("    d2=%08lx", orgd2);
+              printf("    d2=%08x", orgd2);
           else if (IMM16())
-              printf("    imm16=%08lx", orgd2);
+              printf("    imm16=%08x", orgd2);
           else if (IMM32())
-              printf("    imm32=%08lx", orgd2);
+              printf("    imm32=%08x", orgd2);
           printf("    CCR=%s (%d)\n", getccr(ccrin), ccrin);
-          printf("M68K   d0=%08lx    d1=%08lx", m68d0, m68d1);
+          printf("M68K   d0=%08x    d1=%08x", m68d0, m68d1);
           if (DREG(2))
-              printf("    d2=%08lx", m68d2);
+              printf("    d2=%08x", m68d2);
           else if (IMM16())
-              printf("    imm16=%08lx", m68d2);
+              printf("    imm16=%08x", m68d2);
           else if (IMM32())
-              printf("    imm32=%08lx", m68d2);
+              printf("    imm32=%08x", m68d2);
           printf("    CCR=%s (%d)\n", getccr(m68ccrout), m68ccrout); 
-          printf("GEN    d0=%08lx    d1=%08lx", gend0, gend1);
+          printf("GEN    d0=%08x    d1=%08x", gend0, gend1);
           if (DREG(2))
-              printf("    d2=%08lx", gend2);
+              printf("    d2=%08x", gend2);
           else if (IMM16())
-              printf("    imm16=%08lx", gend2);
+              printf("    imm16=%08x", gend2);
           else if (IMM32())
-              printf("    imm32=%08lx", gend2);
+              printf("    imm32=%08x", gend2);
           printf("    CCR=%s (%d)\n\n", getccr(genccrout), genccrout);
 
           fflush(stdout);
@@ -330,7 +326,7 @@ static void run_opcodes(uint32 mask)
       k0++;
  } while (DREG(2) || IMM16() || IMM32());
   
-  printf("%ld errors of %ld tests done for %s (%02x%02x)                                  \n",0,testsdone,text_opcodes[i],opcode_to_test[0],opcode_to_test[1]); 
+  printf("%d errors of %d tests done for %s (%02x%02x)                                  \n",0,testsdone,text_opcodes[i],opcode_to_test[0],opcode_to_test[1]); 
 
  } // end of opcode loop.
 
@@ -513,4 +509,6 @@ int main(int argc, char **argv)
     init_opcodes();
 
     run_opcodes(mask); 
+
+    return 0;
 }
