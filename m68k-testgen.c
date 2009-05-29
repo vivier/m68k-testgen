@@ -43,10 +43,10 @@ typedef signed int   int32;
 #define AREG_SHIFT	8
 #define IMM16_SHIFT	30
 #define IMM32_SHIFT	31
-#define DREG(_x)	((mask & (1 << ((_x) + DREG_SHIFT))) != 0)
-#define AREG(_x)	((mask & (1 << ((_x) + AREG_SHIFT))) != 0)
-#define IMM16()		((mask & (1 << IMM16_SHIFT)) != 0)
-#define IMM32()		((mask & (1 << IMM32_SHIFT)) != 0)
+#define DREG(mask, _x)	(((mask) & (1 << ((_x) + DREG_SHIFT))) != 0)
+#define AREG(mask, _x)	(((mask) & (1 << ((_x) + AREG_SHIFT))) != 0)
+#define IMM16(mask)	(((mask) & (1 << IMM16_SHIFT)) != 0)
+#define IMM32(mask)	(((mask) & (1 << IMM32_SHIFT)) != 0)
 
 #include "patterns.h"
 
@@ -167,7 +167,7 @@ static int create_asm_fn(uint8 *newopcode,size_t size, uint32 imm, int set_imm)
     return 0;
 }
 
-static void print_header(uint8 *opcode, int opcode_size)
+static void print_header_text(uint8 *opcode, int opcode_size)
 {
     int i;
 
@@ -177,10 +177,51 @@ static void print_header(uint8 *opcode, int opcode_size)
     printf("\n");
 }
 
+static void print_test_text(const char *name, cpu_stat *m68k_stat)
+{
+    printf("broken opcode: %s\n", name);
+    printf("before d0=%08x    d1=%08x",
+           m68k_stat->regs_in[0], m68k_stat->regs_in[1]);
+
+    if (DREG(m68k_stat->mask, 2))
+        printf("    d2=%08x", m68k_stat->regs_in[2]);
+    else if (IMM16(m68k_stat->mask))
+        printf("    imm16=%08x", m68k_stat->regs_in[2]);
+    else if (IMM32(m68k_stat->mask))
+        printf("    imm32=%08x", m68k_stat->regs_in[2]);
+    printf("    CCR=%s (%d)\n",
+           getccr(m68k_stat->ccr_in), m68k_stat->ccr_in);
+
+    printf("M68K   d0=%08x    d1=%08x",
+           m68k_stat->regs_out[0], m68k_stat->regs_out[1]);
+    if (DREG(m68k_stat->mask, 2))
+        printf("    d2=%08x", m68k_stat->regs_out[2]);
+    else if (IMM16(m68k_stat->mask))
+        printf("    imm16=%08x", m68k_stat->regs_out[2]);
+    else if (IMM32(m68k_stat->mask))
+        printf("    imm32=%08x", m68k_stat->regs_out[2]);
+    printf("    CCR=%s (%d)\n",
+           getccr(m68k_stat->ccr_out), m68k_stat->ccr_out); 
+
+    printf("GEN    d0=%08x    d1=%08x",
+           m68k_stat->regs_out[0], m68k_stat->regs_out[1]);
+    if (DREG(m68k_stat->mask, 2))
+        printf("    d2=%08x", m68k_stat->regs_out[2]);
+    else if (IMM16(m68k_stat->mask))
+        printf("    imm16=%08x", m68k_stat->regs_out[2]);
+    else if (IMM32(m68k_stat->mask))
+        printf("    imm32=%08x", m68k_stat->regs_out[2]);
+    printf("    CCR=%s (%d)\n",
+           getccr(m68k_stat->ccr_out), m68k_stat->ccr_out);
+
+    printf("\n");
+
+    fflush(stdout);
+}
+
 static void run_opcodes(uint32 mask)
 {
  int status;
- uint16 ccrin=0xff;                      // condition code register  in
  uint16 xccr=0xff;      // condition code registers out
  cpu_stat m68k_stat;
 
@@ -189,6 +230,7 @@ static void run_opcodes(uint32 mask)
  uint32 testsdone=0;
  int set_imm=0;
 
+ m68k_stat.mask = mask;
  for (i=0; i<NUMOPCODES; i++) 
  {
 
@@ -229,11 +271,11 @@ static void run_opcodes(uint32 mask)
 
    m68k_stat.regs_in[2] = test_pattern[k0];
 
-  print_header(opcode_to_test, j);
+  print_header_text(opcode_to_test, j);
 
-  if (IMM16())
+  if (IMM16(m68k_stat.mask))
     set_imm = 1;
-  else if (IMM32())
+  else if (IMM32(m68k_stat.mask))
     set_imm = 2;
   else
     set_imm = 0;
@@ -263,15 +305,15 @@ static void run_opcodes(uint32 mask)
 
       if (verbose && (testsdone & 0x3ff) == 0) {
         fprintf(stderr,"%s ",text_opcodes[i]);
-        if (DREG(0))
+        if (DREG(m68k_stat.mask, 0))
             fprintf(stderr, "d0=%08x", m68k_stat.regs_in[0]);
-        if (DREG(1))
+        if (DREG(m68k_stat.mask, 1))
             fprintf(stderr, ",d1=%08x", m68k_stat.regs_in[1]);
-        if (DREG(2))
+        if (DREG(m68k_stat.mask, 2))
             fprintf(stderr, ",d2=%08x", m68k_stat.regs_in[2]);
-        else if (IMM16())
+        else if (IMM16(m68k_stat.mask))
             fprintf(stderr, ",imm16=%08x", m68k_stat.regs_in[2] & 0xffff);
-        else if (IMM32())
+        else if (IMM32(m68k_stat.mask))
             fprintf(stderr, ",imm32=%08x", m68k_stat.regs_in[2]);
         fprintf(stderr," test #%d                 \r", testsdone);
       }
@@ -299,47 +341,18 @@ static void run_opcodes(uint32 mask)
          // sanity check - might not be needed.
          if (xccr!=m68k_stat.ccr_out) {fprintf(stderr,"xccr!=m68ccrout! %d!=%d\n",xccr,m68k_stat.ccr_out); exit(1);}
 
-	  printf("broken opcode: %s\n",text_opcodes[i]);
-          printf("before d0=%08x    d1=%08x",
-                 m68k_stat.regs_in[0], m68k_stat.regs_in[1]);
-          if (DREG(2))
-              printf("    d2=%08x", m68k_stat.regs_in[2]);
-          else if (IMM16())
-              printf("    imm16=%08x", m68k_stat.regs_in[2]);
-          else if (IMM32())
-              printf("    imm32=%08x", m68k_stat.regs_in[2]);
-          printf("    CCR=%s (%d)\n", getccr(ccrin), ccrin);
-          printf("M68K   d0=%08x    d1=%08x",
-                 m68k_stat.regs_out[0], m68k_stat.regs_out[1]);
-          if (DREG(2))
-              printf("    d2=%08x", m68k_stat.regs_out[2]);
-          else if (IMM16())
-              printf("    imm16=%08x", m68k_stat.regs_out[2]);
-          else if (IMM32())
-              printf("    imm32=%08x", m68k_stat.regs_out[2]);
-          printf("    CCR=%s (%d)\n",
-                 getccr(m68k_stat.ccr_out), m68k_stat.ccr_out); 
-          printf("GEN    d0=%08x    d1=%08x",
-                 m68k_stat.regs_out[0], m68k_stat.regs_out[1]);
-          if (DREG(2))
-              printf("    d2=%08x", m68k_stat.regs_out[2]);
-          else if (IMM16())
-              printf("    imm16=%08x", m68k_stat.regs_out[2]);
-          else if (IMM32())
-              printf("    imm32=%08x", m68k_stat.regs_out[2]);
-          printf("    CCR=%s (%d)\n\n",
-                 getccr(m68k_stat.ccr_out), m68k_stat.ccr_out);
+          print_test_text(text_opcodes[i], &m68k_stat);
 
           fflush(stdout);
          } // end of k2 
          k2++;
-       } while (DREG(1));
+       } while (DREG(m68k_stat.mask, 1));
        k1++;
-      } while (DREG(0));
+      } while (DREG(m68k_stat.mask, 0));
 
       munmap(exec68k_opcode, (codesize + PAGE_SIZE - 1) & PAGE_MASK);
       k0++;
- } while (DREG(2) || IMM16() || IMM32());
+ } while (DREG(m68k_stat.mask, 2) || IMM16(m68k_stat.mask) || IMM32(m68k_stat.mask));
   
   printf("%d errors of %d tests done for %s (%02x%02x)                                  \n",0,testsdone,text_opcodes[i],opcode_to_test[0],opcode_to_test[1]); 
 
