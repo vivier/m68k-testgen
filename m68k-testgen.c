@@ -77,6 +77,14 @@ uint16 (*exec68k_opcode)(uint16 *ccrin, uint32 *reg1, uint32 *reg2, uint32 *reg3
 
 uint32 *fnstart, codesize, nopoffset, nopsize;
 
+typedef struct cpu_stat {
+    uint32 mask;
+    uint16 ccr_in;
+    uint16 ccr_out;
+    uint32 regs_in[32];
+    uint32 regs_out[32];
+} cpu_stat;
+
 static int verbose = 0;
 
 static void banner(void)
@@ -173,11 +181,8 @@ static void run_opcodes(uint32 mask)
 {
  int status;
  uint16 ccrin=0xff;                      // condition code register  in
- uint16 m68ccrout=0xff, genccrout=0xff;  // condition code registers out
  uint16 xccr=0xff;      // condition code registers out
- uint32 orgd0=0,    orgd1=0,  orgd2;     // original  d0/d1 registers
- uint32 m68d0=0,    m68d1=0,  m68d2;     // m68k      d0/d1 registers
- uint32 gend0=0,    gend1=0,  gend2;     // generator d0/d1 registers
+ cpu_stat m68k_stat;
 
  uint8  *p,*q;                         // execution space for generator.
  int i,j,k0,k1,k2;
@@ -219,9 +224,10 @@ static void run_opcodes(uint32 mask)
 
   k0 = 0;
   do {
-   orgd2 = test_pattern[k0];
-   if (orgd2 == 0xdeadbeef)
+   if (test_pattern[k0] == 0xdeadbeef)
      break;
+
+   m68k_stat.regs_in[2] = test_pattern[k0];
 
   print_header(opcode_to_test, j);
 
@@ -238,82 +244,91 @@ static void run_opcodes(uint32 mask)
     fflush(stderr);
   }
 
-  status=create_asm_fn(opcode_to_test,j,orgd2,set_imm);
+  status=create_asm_fn(opcode_to_test,j,m68k_stat.regs_in[2],set_imm);
   if (status) {fprintf(stderr, "Couldn't create asm function because:%d\n",status); exit(1);}
   //---------------------------------
 
 
    k1 = 0;
    do {
-    orgd0 = test_pattern[k1];
-   if (orgd0 == 0xdeadbeef)
+    if (test_pattern[k1] == 0xdeadbeef)
      break;
+    m68k_stat.regs_in[0] = test_pattern[k1];
 
     k2 = 0;
     do {
-      orgd1 = test_pattern[k2];
-      if (orgd1 == 0xdeadbeef)
+      if (test_pattern[k2] == 0xdeadbeef)
         break;
+      m68k_stat.regs_in[1] = test_pattern[k2];
+
       if (verbose && (testsdone & 0x3ff) == 0) {
         fprintf(stderr,"%s ",text_opcodes[i]);
         if (DREG(0))
-            fprintf(stderr, "d0=%08x", orgd0);
+            fprintf(stderr, "d0=%08x", m68k_stat.regs_in[0]);
         if (DREG(1))
-            fprintf(stderr, ",d1=%08x", orgd1);
+            fprintf(stderr, ",d1=%08x", m68k_stat.regs_in[1]);
         if (DREG(2))
-            fprintf(stderr, ",d2=%08x", orgd2);
+            fprintf(stderr, ",d2=%08x", m68k_stat.regs_in[2]);
         else if (IMM16())
-            fprintf(stderr, ",imm16=%08x", orgd2 & 0xffff);
+            fprintf(stderr, ",imm16=%08x", m68k_stat.regs_in[2] & 0xffff);
         else if (IMM32())
-            fprintf(stderr, ",imm32=%08x", orgd2);
+            fprintf(stderr, ",imm32=%08x", m68k_stat.regs_in[2]);
         fprintf(stderr," test #%d                 \r", testsdone);
       }
 
-     for (ccrin=0; ccrin<32; ccrin++) // test all combinations of flags.
+     for (m68k_stat.ccr_in=0; m68k_stat.ccr_in<32; m68k_stat.ccr_in++) // test all combinations of flags.
       {
         if (text_opcodes[i][0]=='d'  && // avoid divide by zero. (DIV[U/S] is word size only hence 0xffff)
             text_opcodes[i][1]=='i'  &&
-            text_opcodes[i][2]=='v'    )
-            {orgd0=(orgd0 & 0xffff)>0 ? orgd0 : 1;}
-
-        gend0=orgd0; gend1=orgd1;  gend2=orgd2;
-        m68d0=orgd0; m68d1=orgd1;  m68d2=orgd2; 
+            text_opcodes[i][2]=='v'  && (m68k_stat.regs_in[0] & 0xffff) == 0 )
+            m68k_stat.regs_in[0] = 1;
 
         // execute the opcodes, first natively under th 68040, then under generator.
         //     execgen_opcode(&ccrin,&gend0,&gend1,&genccrout);
-        xccr=exec68k_opcode(&ccrin,&m68d0,&m68d1,&m68d2,&m68ccrout);
+
+        m68k_stat.regs_out[0] = m68k_stat.regs_in[0];
+        m68k_stat.regs_out[1] = m68k_stat.regs_in[1];
+        m68k_stat.regs_out[2] = m68k_stat.regs_in[2];
+
+        xccr=exec68k_opcode(&m68k_stat.ccr_in, &m68k_stat.regs_out[0],
+                            &m68k_stat.regs_out[1], &m68k_stat.regs_out[2],
+                            &m68k_stat.ccr_out);
 
         testsdone++; 
 
-
          // sanity check - might not be needed.
-         if (xccr!=m68ccrout) {fprintf(stderr,"xccr!=m68ccrout! %d!=%d\n",xccr,m68ccrout); exit(1);}
+         if (xccr!=m68k_stat.ccr_out) {fprintf(stderr,"xccr!=m68ccrout! %d!=%d\n",xccr,m68k_stat.ccr_out); exit(1);}
 
 	  printf("broken opcode: %s\n",text_opcodes[i]);
-          printf("before d0=%08x    d1=%08x",orgd0, orgd1);
+          printf("before d0=%08x    d1=%08x",
+                 m68k_stat.regs_in[0], m68k_stat.regs_in[1]);
           if (DREG(2))
-              printf("    d2=%08x", orgd2);
+              printf("    d2=%08x", m68k_stat.regs_in[2]);
           else if (IMM16())
-              printf("    imm16=%08x", orgd2);
+              printf("    imm16=%08x", m68k_stat.regs_in[2]);
           else if (IMM32())
-              printf("    imm32=%08x", orgd2);
+              printf("    imm32=%08x", m68k_stat.regs_in[2]);
           printf("    CCR=%s (%d)\n", getccr(ccrin), ccrin);
-          printf("M68K   d0=%08x    d1=%08x", m68d0, m68d1);
+          printf("M68K   d0=%08x    d1=%08x",
+                 m68k_stat.regs_out[0], m68k_stat.regs_out[1]);
           if (DREG(2))
-              printf("    d2=%08x", m68d2);
+              printf("    d2=%08x", m68k_stat.regs_out[2]);
           else if (IMM16())
-              printf("    imm16=%08x", m68d2);
+              printf("    imm16=%08x", m68k_stat.regs_out[2]);
           else if (IMM32())
-              printf("    imm32=%08x", m68d2);
-          printf("    CCR=%s (%d)\n", getccr(m68ccrout), m68ccrout); 
-          printf("GEN    d0=%08x    d1=%08x", gend0, gend1);
+              printf("    imm32=%08x", m68k_stat.regs_out[2]);
+          printf("    CCR=%s (%d)\n",
+                 getccr(m68k_stat.ccr_out), m68k_stat.ccr_out); 
+          printf("GEN    d0=%08x    d1=%08x",
+                 m68k_stat.regs_out[0], m68k_stat.regs_out[1]);
           if (DREG(2))
-              printf("    d2=%08x", gend2);
+              printf("    d2=%08x", m68k_stat.regs_out[2]);
           else if (IMM16())
-              printf("    imm16=%08x", gend2);
+              printf("    imm16=%08x", m68k_stat.regs_out[2]);
           else if (IMM32())
-              printf("    imm32=%08x", gend2);
-          printf("    CCR=%s (%d)\n\n", getccr(genccrout), genccrout);
+              printf("    imm32=%08x", m68k_stat.regs_out[2]);
+          printf("    CCR=%s (%d)\n\n",
+                 getccr(m68k_stat.ccr_out), m68k_stat.ccr_out);
 
           fflush(stdout);
          } // end of k2 
