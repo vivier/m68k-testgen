@@ -345,6 +345,11 @@ static void run_opcodes(uint32 mask, format_t format)
   // single operand opcodes, both k0 and k1 need to be commented out.
   // for dual operand opcodes k0 should be commented out.
 
+   if (format == TEXT)
+       print_header_text(text_opcodes[i], (uint16*)opcode_to_test, j);
+   else
+       print_header_binary(text_opcodes[i], (uint16*)opcode_to_test, j);
+
 
   k0 = 0;
   do {
@@ -352,11 +357,6 @@ static void run_opcodes(uint32 mask, format_t format)
      break;
 
    m68k_stat.regs_in[2] = test_pattern[k0];
-
-   if (format == TEXT)
-       print_header_text(text_opcodes[i], (uint16*)opcode_to_test, j);
-   else
-       print_header_binary(text_opcodes[i], (uint16*)opcode_to_test, j);
 
   if (IMM16(m68k_stat.mask))
     set_imm = 1;
