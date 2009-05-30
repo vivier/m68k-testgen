@@ -56,6 +56,8 @@ typedef signed int   int32;
 #define V_FLAG  2
 #define C_FLAG  1
 
+typedef enum { TEXT, BINARY } format_t;
+
 #include "opcodes.h"
 
 extern uint16 *test_opcodes[NUMOPCODES];
@@ -167,13 +169,104 @@ static int create_asm_fn(uint8 *newopcode,size_t size, uint32 imm, int set_imm)
     return 0;
 }
 
-static void print_header_text(uint8 *opcode, int opcode_size)
+static void print_header_binary(const char *name, uint16 *opcode, int opcode_size)
+{
+    uint32 value;
+    int i;
+
+    printf("binary\n");
+
+#define INSTRUCTION_SIGNATURE 1
+
+    value = 0;
+    value |= (INSTRUCTION_SIGNATURE & 0x3) << 30;
+    value |= (strlen(name) & 0x7) << 27;
+    value |= ((opcode_size >> 2) & 0x07ff) << 16;
+    value |= opcode[0] & 0xffff;
+
+    fwrite(&value, sizeof(value), 1, stdout);
+
+    value = 0;
+    for (i = 1; i < (opcode_size >> 1); i += 2) {
+        value = ((uint32)opcode[i]) << 16;
+        if (i + 1 < (opcode_size >> 1))
+            value |= opcode[i + 1];
+        else
+            value |= 0x4e71; /* NOP */
+        fwrite(&value, sizeof(value), 1, stdout);
+    }
+
+    fwrite(name, strlen(name), 1, stdout);
+}
+
+static void print_test_binary(const char *name, cpu_stat *m68k_stat)
+{
+    uint32 value;
+#define CPU_STATE_SIGNATURE 2
+
+    value = 0;
+    value |= (CPU_STATE_SIGNATURE & 0x3) << 30;
+
+#define REG_NONE 0
+#define REG_DATA 1
+#define REG_ADDR 2
+#define REG_FP   3
+
+    if (DREG(m68k_stat->mask, 0)) {
+        value |= (REG_DATA & 0x3) << 28;
+        value |= (0 & 0x7) << 25;
+    }
+    if (DREG(m68k_stat->mask, 1)) {
+        value |= (REG_DATA & 0x3) << 23;
+        value |= (1 & 0x7) << 20;
+    }
+    if (DREG(m68k_stat->mask, 2)) {
+        value |= (REG_DATA & 0x3) << 18;
+        value |= (2 & 0x7) << 15;
+    }
+    value |= (m68k_stat->ccr_in & 0x1f);
+    fwrite(&value, sizeof(value), 1, stdout);
+
+    if (DREG(m68k_stat->mask, 0)) {
+        fwrite(&m68k_stat->regs_in[0], sizeof(uint32), 1, stdout);
+    }
+    if (DREG(m68k_stat->mask, 1)) {
+        fwrite(&m68k_stat->regs_in[1], sizeof(uint32), 1, stdout);
+    }
+    if (DREG(m68k_stat->mask, 2)) {
+        fwrite(&m68k_stat->regs_in[2], sizeof(uint32), 1, stdout);
+    }
+
+    value &= ~0x1f;
+    value |= (m68k_stat->ccr_out & 0x1f);
+    fwrite(&value, sizeof(value), 1, stdout);
+    if (DREG(m68k_stat->mask, 0)) {
+        fwrite(&m68k_stat->regs_out[0], sizeof(uint32), 1, stdout);
+    }
+    if (DREG(m68k_stat->mask, 1)) {
+        fwrite(&m68k_stat->regs_out[1], sizeof(uint32), 1, stdout);
+    }
+    if (DREG(m68k_stat->mask, 2)) {
+        fwrite(&m68k_stat->regs_out[2], sizeof(uint32), 1, stdout);
+    }
+#define END_SIGNATURE 0
+#define END_TEST 1
+#define END_SERIES 2
+    value = 0;
+    value |= (END_SIGNATURE & 0x3) << 30;
+    value |= (END_TEST & 0x3) << 28;
+    value |= ('\f' << 8) & 0xff00;
+    value |= '\n' & 0xff;
+    fwrite(&value, sizeof(value), 1, stdout);
+}
+
+static void print_header_text(const char *name, uint16 *opcode, int opcode_size)
 {
     int i;
 
     printf("opcode_bin:");
-    for (i = 0; i < opcode_size; i+= 2)
-        printf("%02x%02x ", opcode[i],opcode[i + 1]);
+    for (i = 0; i < (opcode_size >> 1); i++)
+        printf("%04x ", opcode[i]);
     printf("\n");
 }
 
@@ -208,7 +301,7 @@ static void print_test_text(const char *name, cpu_stat *m68k_stat)
     fflush(stdout);
 }
 
-static void run_opcodes(uint32 mask)
+static void run_opcodes(uint32 mask, format_t format)
 {
  int status;
  uint16 xccr=0xff;      // condition code registers out
@@ -260,7 +353,10 @@ static void run_opcodes(uint32 mask)
 
    m68k_stat.regs_in[2] = test_pattern[k0];
 
-  print_header_text(opcode_to_test, j);
+   if (format == TEXT)
+       print_header_text(text_opcodes[i], (uint16*)opcode_to_test, j);
+   else
+       print_header_binary(text_opcodes[i], (uint16*)opcode_to_test, j);
 
   if (IMM16(m68k_stat.mask))
     set_imm = 1;
@@ -327,7 +423,10 @@ static void run_opcodes(uint32 mask)
          // sanity check - might not be needed.
          if (xccr!=m68k_stat.ccr_out) {fprintf(stderr,"xccr!=m68ccrout! %d!=%d\n",xccr,m68k_stat.ccr_out); exit(1);}
 
-          print_test_text(text_opcodes[i], &m68k_stat);
+          if (format == TEXT)
+              print_test_text(text_opcodes[i], &m68k_stat);
+          else
+              print_test_binary(text_opcodes[i], &m68k_stat);
 
           fflush(stdout);
          } // end of k2 
@@ -340,7 +439,25 @@ static void run_opcodes(uint32 mask)
       k0++;
  } while (DREG(m68k_stat.mask, 2) || IMM16(m68k_stat.mask) || IMM32(m68k_stat.mask));
   
-  printf("%d errors of %d tests done for %s (%02x%02x)                                  \n",0,testsdone,text_opcodes[i],opcode_to_test[0],opcode_to_test[1]); 
+  if (format == TEXT)
+    printf("%d errors of %d tests done for %s (%02x%02x)                                  \n",0,testsdone,text_opcodes[i],opcode_to_test[0],opcode_to_test[1]); 
+  else {
+    uint32 value;
+#define RESULTS_SIGNATURE 3
+#define RESULTS_N_TESTS 0
+#define RESULTS_N_ERRORS 1
+    value = 0;
+    value |= (RESULTS_SIGNATURE << 30) & 0xC0000000;
+    value |= (RESULTS_N_TESTS << 29) & 0x20000000;
+    value |= testsdone & 0x1FFFFFFF;
+    fwrite(&value, sizeof(value), 1, stdout);
+    value = 0;
+    value |= (END_SIGNATURE << 30) & 0xC0000000;
+    value |= (END_SERIES << 28) & 0x30000000;
+    value |= ('\f' << 8) & 0xff00;
+    value |= '\n' & 0xff;
+    fwrite(&value, sizeof(value), 1, stdout);
+  }
 
  } // end of opcode loop.
 
@@ -471,15 +588,17 @@ int main(int argc, char **argv)
     int option_index = 0;
     static struct option long_options[] = {
         { "registers", 1, NULL, 'r' },
+        { "format", 1, NULL, 'f' },
         { "verbose", 1, NULL, 'v' },
         { "help", 0, NULL, 'h' },
         {0, 0, 0, 0}
     };
     int c;
     uint32 mask = 0x3;    /* %d0,%d1 */
+    format_t format = BINARY;
 
     while (1) {
-        c = getopt_long(argc, argv, "vhr:",
+        c = getopt_long(argc, argv, "vhr:f:",
                 long_options, &option_index);
             if (c == -1)
             break;
@@ -488,6 +607,17 @@ int main(int argc, char **argv)
         case 'r':
             if (registers_mask(optarg, &mask) || !mask) {
                 fprintf(stderr, "Error: Invalid registers\n");
+                Usage(argc, argv);
+                exit(1);
+            }
+            break;
+        case 'f':
+            if (strcmp("text", optarg) == 0)
+                format = TEXT;
+            else if (strcmp("binary", optarg) == 0)
+                format = BINARY;
+            else {
+                fprintf(stderr, "Error: Invalid format\n");
                 Usage(argc, argv);
                 exit(1);
             }
@@ -522,7 +652,7 @@ int main(int argc, char **argv)
 
     init_opcodes();
 
-    run_opcodes(mask); 
+    run_opcodes(mask, format); 
 
     return 0;
 }
