@@ -11,6 +11,7 @@
 *                                                                            *
 \****************************************************************************/
 
+#include <unistd.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -21,6 +22,10 @@
 #include <signal.h>
 #include <getopt.h>
 #include <libgen.h>
+#include <sys/mman.h>
+
+#define PAGE_SIZE		(sysconf(_SC_PAGESIZE))
+#define PAGE_MASK		(~(PAGE_SIZE-1))
 
 typedef unsigned char  uint8;
 typedef unsigned short uint16;
@@ -110,8 +115,10 @@ static int create_asm_fn(uint8 *newopcode,size_t size, uint32 imm, int set_imm)
 
     /* allocate memory for it + pad it to prevent problems just incase. */
 
-    memory=(uint8 *)malloc(codesize<65536 ? 65536:codesize+32768);
-    if (!memory)
+    memory = mmap(NULL, (codesize + PAGE_SIZE - 1) & PAGE_MASK,
+                  PROT_EXEC | PROT_WRITE | PROT_READ,
+                  MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+    if (memory == (void*)-1)
         return 2;
 
     /* copy the function to the allocated memory + some padding. */
@@ -144,11 +151,6 @@ static int create_asm_fn(uint8 *newopcode,size_t size, uint32 imm, int set_imm)
      * newly allocated memory.
      * this "malloc first, then free" method avoids cache coherency issues.
      */
-
-    /* memory leak to prevent over malloc/free'd. */
-
-    if (exec68k_opcode != NULL)
-        free(exec68k_opcode);
 
     exec68k_opcode = (void *)memory;        
 
@@ -305,6 +307,7 @@ static void run_opcodes(uint32 mask)
       } while (DREG(0) &&
                (orgd0 = test_pattern[k1] )!=0xdeadbeef);
 
+      munmap(exec68k_opcode, (codesize + PAGE_SIZE - 1) & PAGE_MASK);
       k0++;
  } while ((DREG(2) || IMM()) &&
           (orgd2 = test_pattern[k0]) != 0xdeadbeef);
@@ -466,10 +469,6 @@ int main(int argc, char **argv)
     if (verbose > 1)
         banner();
     
-    /* Set the stage */
-     
-    exec68k_opcode=NULL; // make sure we don't free illegally.
-
     // get fn start, codesize, nopoffset, nopsizes
 
     fnstart  = (uint32*)getfnptr();  
