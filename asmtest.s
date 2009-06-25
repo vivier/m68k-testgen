@@ -53,17 +53,16 @@
 .globl asmtest
 asmtest:
 
-	pea %a6@                      /*  Setup stack frame   */
-        movel %sp,%a6
+	linkw %fp,#0                    /*  Setup stack frame   */
         movel %a2,%sp@-
 
-        movel %a6@(8),%a4              /* Get pointer to ccrin */
+        movel %fp@(8),%a4              /* Get pointer to ccrin */
 
-        movel %a6@(12),%a0             /* Get pointer to reg1  */
-        movel %a6@(16),%a1             /* Get pointer to reg2  */
-        movel %a6@(20),%a2             /* Get pointer to ccrout*/
+        movel %fp@(12),%a0             /* Get pointer to reg1  */
+        movel %fp@(16),%a1             /* Get pointer to reg2  */
+        movel %fp@(20),%a2             /* Get pointer to ccrout*/
 
-        movel %a6@(24),%a3             /* Get pointer to ccrout*/
+        movel %fp@(24),%a3             /* Get pointer to ccrout*/
 
         movel %a0@,%d0                 /* Get reg1 into %d0     */
         movel %a1@,%d1                 /* Get reg2 into %d1     */
@@ -99,7 +98,7 @@ ENDMYOPC:
         .align 1
 L2:
         movel %sp@+,%a2
-        unlk %a6
+        unlk %fp
         rts
 ENDOFFN:
 
