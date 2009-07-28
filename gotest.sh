@@ -24,7 +24,7 @@ RUNTEST()
    fi
    
    ./m68k-testgen -v --registers="$PARAMS" | \
-      gzip -1 -c > "${DIR}/m68040-opcode-${OPCODE}.txt.gz"
+      gzip -1 -c > "${DIR}/m68040-opcode-${OPCODE}.bin.gz"
    if [ ! $? ]
    then
       echo failing $OPCODE $PARAMS test.
