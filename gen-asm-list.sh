@@ -4,12 +4,12 @@
  
 # RUNTEST "bfchg"   "%d0{%d1:%d2}"
 # RUNTEST "bfclr"   "%d0{%d1:%d2}"
-# RUNTEST "bfexts"  "%d0{%d1:%d2}"
-# RUNTEST "bfextu"  "%d0{%d1:%d2}"
-# RUNTEST "bfffo"   "%d0{%d1:%d2}"
-# RUNTEST "bfins"   "%d0{%d1:%d2}"
 # RUNTEST "bfset"   "%d0{%d1:%d2}"
 # RUNTEST "bftst"   "%d0{%d1:%d2}"
+# RUNTEST "bfexts"  "%d0{%d1:%d2},%d0"
+# RUNTEST "bfextu"  "%d0{%d1:%d2},%d0"
+# RUNTEST "bfffo"   "%d0{%d1:%d2},%d0"
+# RUNTEST "bfins"   "%d0,%d0{%d1:%d2}"
 
 # RUNTEST "rorl" "%d0,%d1"
 # RUNTEST "rorw" "%d0,%d1"
