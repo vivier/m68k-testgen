@@ -17,12 +17,12 @@
 # RUNTEST "roll" "%d0,%d1"
 # RUNTEST "rolw" "%d0,%d1"
 # RUNTEST "rolb" "%d0,%d1"
- RUNTEST "roxrl" "%d0,%d1"
- RUNTEST "roxrw" "%d0,%d1"
- RUNTEST "roxrb" "%d0,%d1"
- RUNTEST "roxll" "%d0,%d1"
- RUNTEST "roxlw" "%d0,%d1"
- RUNTEST "roxlb" "%d0,%d1"
+# RUNTEST "roxrl" "%d0,%d1"
+# RUNTEST "roxrw" "%d0,%d1"
+# RUNTEST "roxrb" "%d0,%d1"
+# RUNTEST "roxll" "%d0,%d1"
+# RUNTEST "roxlw" "%d0,%d1"
+# RUNTEST "roxlb" "%d0,%d1"
 
 #
 # RUNTEST "mulul" "%d2,%d0:%d1"
