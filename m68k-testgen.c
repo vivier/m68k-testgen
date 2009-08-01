@@ -75,8 +75,6 @@ extern void init_opcodes(void);
 
 extern uint16  asmtest(uint16 *ccrin, uint32 *reg1, uint32 *reg2, uint32 *reg3, uint16 *ccrout);
 
-uint16 (*exec68k_opcode)(uint16 *ccrin, uint32 *reg1, uint32 *reg2, uint32 *reg3, uint16 *ccrout);
-
 uint32 *fnstart, codesize, nopoffset, nopsize;
 
 typedef struct cpu_stat {
@@ -117,25 +115,14 @@ static char *getccr(uint16 ccr)
     return text;
 }
 
-static int create_asm_fn(uint8 *newopcode,size_t size, uint32 imm, int set_imm)
+static int create_asm_fn(uint8 *newopcode, uint8 *memory, size_t size,
+			 uint32 imm, int set_imm)
 {
     uint32 i;
-    uint8 *memory;
 
-    if (size > nopsize)
-        return 1;
+    /* copy the function to the allocated memory. */
 
-    /* allocate memory for it + pad it to prevent problems just incase. */
-
-    memory = mmap(NULL, (codesize + PAGE_SIZE - 1) & PAGE_MASK,
-                  PROT_EXEC | PROT_WRITE | PROT_READ,
-                  MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
-    if (memory == (void*)-1)
-        return 2;
-
-    /* copy the function to the allocated memory + some padding. */
-
-    memcpy(memory,fnstart,codesize+16); 
+    memcpy(memory, fnstart, codesize); 
 
     /* now overwrite the NOP's with the actual opcode we want to test. */
 
@@ -158,13 +145,6 @@ static int create_asm_fn(uint8 *newopcode,size_t size, uint32 imm, int set_imm)
     default:
         break;
     }
-
-    /* Free the old fn if we had one, then assign fn pointer to
-     * newly allocated memory.
-     * this "malloc first, then free" method avoids cache coherency issues.
-     */
-
-    exec68k_opcode = (void *)memory;        
 
     return 0;
 }
@@ -311,6 +291,9 @@ static void run_opcodes(uint32 mask, format_t format)
  int i,j,k0,k1,k2;
  uint32 testsdone=0;
  int set_imm=0;
+ uint8 *memory;
+
+ uint16 (*exec68k_opcode)(uint16 *ccrin, uint32 *reg1, uint32 *reg2, uint32 *reg3, uint16 *ccrout);
 
  m68k_stat.mask = mask;
  for (i=0; i<NUMOPCODES; i++) 
@@ -334,6 +317,19 @@ static void run_opcodes(uint32 mask, format_t format)
   while (j<16 && // NOP = 0x4E71;
          !(opcode_to_test[j] ==0x4E && opcode_to_test[j+1] ==0x71)) {
     j+=2;
+  }
+
+  if (j > nopsize) {
+    fprintf(stderr, "Not enough room to store opcode\n");
+    exit(1);
+  }
+
+  memory = mmap(NULL, (j + PAGE_SIZE - 1) & PAGE_MASK,
+                PROT_EXEC | PROT_WRITE | PROT_READ,
+                MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+  if (memory == (void*)-1) {
+    fprintf(stderr, "Cannot map memory\n");
+    exit(1);
   }
 
   if (verbose > 1) {
@@ -371,8 +367,11 @@ static void run_opcodes(uint32 mask, format_t format)
     fflush(stderr);
   }
 
-  status=create_asm_fn(opcode_to_test,j,m68k_stat.regs_in[2],set_imm);
+  status=create_asm_fn(opcode_to_test,memory, j,m68k_stat.regs_in[2],set_imm);
   if (status) {fprintf(stderr, "Couldn't create asm function because:%d\n",status); exit(1);}
+
+  exec68k_opcode = (void *)memory;        
+
   //---------------------------------
 
 
@@ -435,10 +434,11 @@ static void run_opcodes(uint32 mask, format_t format)
        k1++;
       } while (DREG(m68k_stat.mask, 0));
 
-      munmap(exec68k_opcode, (codesize + PAGE_SIZE - 1) & PAGE_MASK);
       k0++;
  } while (DREG(m68k_stat.mask, 2) || IMM16(m68k_stat.mask) || IMM32(m68k_stat.mask));
   
+  munmap(memory, (j + PAGE_SIZE - 1) & PAGE_MASK);
+
   if (format == TEXT)
     printf("%d errors of %d tests done for %s (%02x%02x)                                  \n",0,testsdone,text_opcodes[i],opcode_to_test[0],opcode_to_test[1]); 
   else {
